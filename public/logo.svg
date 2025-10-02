@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Hexágono central -->
+  <polygon points="256,156 342,206 342,306 256,356 170,306 170,206" fill="#48B281" stroke="#000" stroke-width="4"/>
+  
+  <!-- Círculos centrais -->
+  <circle cx="256" cy="256" r="40" fill="#fff" stroke="#000" stroke-width="6"/>
+  <circle cx="256" cy="256" r="15" fill="#48B281" stroke="#000" stroke-width="4"/>
+
+  <!-- Hexágonos menores -->
+  <polygon points="106,106 126,94 146,106 146,130 126,142 106,130" fill="#DC4646" stroke="#000" stroke-width="3"/>
+  <polygon points="256,56 276,68 276,92 256,104 236,92 236,68" fill="#F0B43C" stroke="#000" stroke-width="3"/>
+  <polygon points="406,106 426,118 426,142 406,154 386,142 386,118" fill="#E6C850" stroke="#000" stroke-width="3"/>
+  <polygon points="56,256 76,244 96,256 96,280 76,292 56,280" fill="#8C64C8" stroke="#000" stroke-width="3"/>
+  <polygon points="456,256 476,268 476,292 456,304 436,292 436,268" fill="#8C64C8" stroke="#000" stroke-width="3"/>
+  <polygon points="106,406 126,394 146,406 146,430 126,442 106,430" fill="#F0B43C" stroke="#000" stroke-width="3"/>
+  <polygon points="256,456 276,468 276,492 256,504 236,492 236,468" fill="#DC4646" stroke="#000" stroke-width="3"/>
+  <polygon points="406,406 426,418 426,442 406,454 386,442 386,418" fill="#E6C850" stroke="#000" stroke-width="3"/>
+</svg>
