@@ -107,10 +107,16 @@ export default function EtiquetasPage() {
     const ano_min = anos.length ? Math.min(...anos) : null
     const ano_max = anos.length ? Math.max(...anos) : null
 
+    // 🔹 Gerar observação "especie-ano; especie-ano; ..."
+    const observacaoGerada = documentos
+      .map((d) => `${d.especie_documental}-${d.data_limite || "—"}`)
+      .join("; ")
+
     const etiquetaProps = {
+      caixaId: caixa.id,                 // ✅ agora passamos o ID exigido pelo componente
       numero: caixa.numero_caixa,
       destinacao: caixa.destinacao ?? null,
-      observacao: documentos[0]?.observacao || undefined,
+      observacao: observacaoGerada || undefined,
       ano_min,
       ano_max,
     }
@@ -148,6 +154,7 @@ export default function EtiquetasPage() {
       numero_processo: p.numero_processo,
       ano: p.ano,
       tipo_processo: p.tipo_processo,
+      classe_processual: p.classe_processual,
     })),
     protocolo: processos[0]?.protocolo ?? undefined,
     qtd_volumes: processos[0]?.quantidade_volumes ?? undefined,

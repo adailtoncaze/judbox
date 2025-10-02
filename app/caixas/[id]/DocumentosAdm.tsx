@@ -24,6 +24,11 @@ export default function DocumentosAdm() {
   const [documentos, setDocumentos] = useState<DocumentoAdm[]>([])
   const [loading, setLoading] = useState(true)
 
+  // paginação
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const pageSize = 10
+
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<DocumentoAdm | null>(null)
 
@@ -48,23 +53,29 @@ export default function DocumentosAdm() {
 
   async function loadDocumentos() {
     setLoading(true)
-    const { data, error } = await supabase
+
+    const start = (page - 1) * pageSize
+    const end = start + pageSize - 1
+
+    const { data, error, count } = await supabase
       .from("documentos_adm")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("caixa_id", caixaId)
       .order("data_limite", { ascending: false })
+      .range(start, end)
 
     if (error) {
       console.error(error)
       showToast("Erro ao carregar documentos", "error")
     }
     setDocumentos((data || []) as DocumentoAdm[])
+    setTotal(count || 0)
     setLoading(false)
   }
 
   useEffect(() => {
     if (caixaId) loadDocumentos()
-  }, [caixaId])
+  }, [caixaId, page])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -159,6 +170,8 @@ export default function DocumentosAdm() {
     setShowModal(true)
   }
 
+  const totalPages = Math.ceil(total / pageSize)
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -170,9 +183,10 @@ export default function DocumentosAdm() {
           >
             + Novo Documento
           </button>
-          {/* Botão Imprimir Etiqueta */}
           <button
-            onClick={() => window.open(`/etiquetas/${caixaId}?tipo=documento_administrativo`, "_blank")}
+            onClick={() =>
+              window.open(`/etiquetas/${caixaId}?tipo=documento_administrativo`, "_blank")
+            }
             className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow"
           >
             Imprimir Etiqueta
@@ -208,7 +222,10 @@ export default function DocumentosAdm() {
                   <td className="px-4 py-3">{d.numero_caixas}</td>
                   <td className="px-4 py-3">{d.observacao ?? "—"}</td>
                   <td className="px-4 py-3 text-right space-x-2">
-                    <button onClick={() => handleEdit(d)} className="text-yellow-600 hover:underline">
+                    <button
+                      onClick={() => handleEdit(d)}
+                      className="text-yellow-600 hover:underline"
+                    >
                       Editar
                     </button>
                     <button
@@ -234,6 +251,34 @@ export default function DocumentosAdm() {
         </table>
       </div>
 
+      {/* Paginação + contador */}
+      {(totalPages > 1 || total > 0) && (
+        <div className="flex flex-col md:flex-row justify-between items-center gap-3 mt-4 text-sm text-gray-600">
+          <span>Total de registros: {total}</span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-3">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
+              >
+                ← Anterior
+              </button>
+              <span>
+                Página {page} de {totalPages}
+              </span>
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
+              >
+                Próxima →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Modal Cadastro */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
@@ -242,7 +287,10 @@ export default function DocumentosAdm() {
               <h3 className="text-lg font-semibold text-indigo-700">
                 {editing ? "Editar Documento" : "Cadastrar Documento"}
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700">
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
                 ✕
               </button>
             </div>
@@ -259,7 +307,6 @@ export default function DocumentosAdm() {
                 />
               </div>
 
-              {/* Linha com 3 colunas: Ano, Qtd. Caixas e Nº Caixas */}
               <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Ano Limite</label>
@@ -278,7 +325,9 @@ export default function DocumentosAdm() {
                   <input
                     type="number"
                     value={form.quantidade_caixas}
-                    onChange={(e) => setForm({ ...form, quantidade_caixas: safeInt(e.target.value, 1) })}
+                    onChange={(e) =>
+                      setForm({ ...form, quantidade_caixas: safeInt(e.target.value, 1) })
+                    }
                     className={inputClass}
                   />
                 </div>
@@ -288,7 +337,9 @@ export default function DocumentosAdm() {
                   <input
                     type="number"
                     value={form.numero_caixas}
-                    onChange={(e) => setForm({ ...form, numero_caixas: safeInt(e.target.value, 1) })}
+                    onChange={(e) =>
+                      setForm({ ...form, numero_caixas: safeInt(e.target.value, 1) })
+                    }
                     className={inputClass}
                   />
                 </div>
@@ -323,7 +374,10 @@ export default function DocumentosAdm() {
             <h2 className="text-lg font-semibold mb-4">Confirmar exclusão</h2>
             <p className="text-sm mb-6">Excluir este documento?</p>
             <div className="flex justify-center gap-3">
-              <button onClick={() => setShowConfirm(false)} className="px-4 py-2 rounded-lg border">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 rounded-lg border"
+              >
                 Cancelar
               </button>
               <button

@@ -8,6 +8,7 @@ type Processo = {
   numero_processo: string
   ano: number
   tipo_processo: string
+  classe_processual: string
 }
 
 type EtiquetaProcessoProps = {
@@ -53,13 +54,13 @@ export default function EtiquetaProcesso({
   return (
     <div
       className="
-        w-[12cm] h-[18cm] border-2 border-black rounded-md bg-white
+        w-[12cm] h-[20cm] border-2 border-black rounded-md bg-white
         flex flex-col text-black font-sans text-xs
-        print:w-[12cm] print:h-[18cm]
+        print:w-[12cm] print:h-[20cm]
       "
     >
       {/* Linha 1 - Logo + TRE-PB */}
-      <div className="flex flex-col justify-center items-center py-2">
+      <div className="flex flex-col justify-center py-2 items-center">
         <Image
           src="/logo-tre-2.png"
           alt="Logo TRE-PB"
@@ -72,17 +73,17 @@ export default function EtiquetaProcesso({
       </div>
 
       {/* Linha 2 - Zona Eleitoral */}
-      <div className="text-center text-white font-semibold border-t border-b border-black py-1 bg-indigo-600 text-sm">
+      <div className="text-center text-white font-semibold border-t border-b border-black bg-indigo-600 text-sm">
         {zona ? `${zona}ª Zona Eleitoral - Guarabira` : "Zona Eleitoral - Guarabira"}
       </div>
 
       {/* Linha 3 - Número de identificação */}
-      <div className="text-center text-white font-semibold border-b border-black py-1 bg-indigo-600 text-sm">
+      <div className="text-center text-white font-semibold border-b border-black bg-indigo-600 text-sm">
         Número de identificação
       </div>
 
       {/* Linha 4 - Número da Caixa */}
-      <div className="flex justify-center items-center h-12 border-b border-black">
+      <div className="flex justify-center items-center h-10 border-b border-black">
         <span className="text-4xl font-bold">{numero}</span>
       </div>
 
@@ -92,7 +93,7 @@ export default function EtiquetaProcesso({
       </div>
 
       {/* Linha 6 - Destinação */}
-      <div className="flex justify-center items-center gap-6 border-b border-black py-1 text-sm">
+      <div className="flex justify-center items-center gap-6 border-b border-black text-sm">
         <span className="font-semibold">Destinação:</span>
         <span className="font-semibold">
           ({destinacao === "preservar" ? "X" : " "}) Preservar
@@ -103,7 +104,7 @@ export default function EtiquetaProcesso({
       </div>
 
       {/* Linha 7 - Datas limite */}
-      <div className="flex items-center gap-2 border-b border-black py-1 px-2 text-sm">
+      <div className="flex items-center gap-2 border-b border-black px-2 text-sm">
         <span className="font-semibold">Datas-Limite:</span>
         <span>
           {anoMin && anoMax ? `Ano dos processos: ${anoMin} a ${anoMax}` : "—"}
@@ -113,17 +114,17 @@ export default function EtiquetaProcesso({
       {/* Linha 8 - Observação */}
       <div className="flex items-center gap-2 border-b border-black py-1 px-2 text-sm">
         <span className="font-semibold">Observações:</span>
-        <span>{observacao}</span>
+        <span>{tipo}</span>
       </div>
 
       {/* Linha 9 - Tabela de processos */}
       <div className="flex-1 overflow-hidden">
-        <table className="w-full border-collapse text-[11px]">
+        <table className="w-full border-collapse text-[11px] table-fixed">
           <thead>
             <tr className="bg-gray-100 border-b border-black">
-              <th className="border border-black px-1 py-0.5 text-left">Número do processo</th>
-              <th className="border border-black px-1 py-0.5 text-left">Ano</th>
-              <th className="border border-black px-1 py-0.5 text-left">Tipo de processo</th>
+              <th className="border border-black px-1 py-0.5 text-left w-[100px]">Número do processo</th>
+              <th className="border border-black px-1 py-0.5 text-left w-[50px]">Ano</th>
+              <th className="border border-black px-1 py-0.5 text-left w-[150px]">Tipo de processo</th>
             </tr>
           </thead>
           <tbody>
@@ -131,14 +132,14 @@ export default function EtiquetaProcesso({
               const proc = processos[i]
               return (
                 <tr key={i} className="border-b border-black">
-                  <td className="border border-black px-1 py-0.5 text-[11px]">
+                  <td className="border border-black px-1 py-0.5 text-[12px] w-[200px] truncate">
                     {proc ? proc.numero_processo : "—"}
                   </td>
-                  <td className="border border-black px-1 py-0.5 text-[11px]">
+                  <td className="border border-black px-1 py-0.5 text-[12px] w-[80px] text-center">
                     {proc ? proc.ano : "—"}
                   </td>
-                  <td className="border border-black px-1 py-0.5 capitalize text-[11px]">
-                    {proc ? proc.tipo_processo : "—"}
+                  <td className="border border-black px-1 py-0.5 text-[12px] w-[150px] capitalize truncate">
+                    {proc ? proc.classe_processual : "—"}
                   </td>
                 </tr>
               )
@@ -146,6 +147,7 @@ export default function EtiquetaProcesso({
           </tbody>
         </table>
       </div>
+
     </div>
   )
 }

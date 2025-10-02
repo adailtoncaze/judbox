@@ -34,6 +34,10 @@ export default function CaixasPage() {
   const [total, setTotal] = useState(0)
   const pageSize = 10
 
+  // 🔹 Contadores por caixa (processos e documentos)
+  const [countProc, setCountProc] = useState<Record<string, number>>({})
+  const [countDoc, setCountDoc] = useState<Record<string, number>>({})
+
   // Modal
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Caixa | null>(null)
@@ -69,10 +73,48 @@ export default function CaixasPage() {
     if (error) {
       showToast("Erro ao carregar caixas", "error")
       setCaixas([])
-    } else {
-      setCaixas(data || [])
-      setTotal(count || 0)
+      setTotal(0)
+      setCountProc({})
+      setCountDoc({})
+      setLoading(false)
+      return
     }
+
+    const lista = data || []
+    setCaixas(lista)
+    setTotal(count || 0)
+
+    // 🔹 Buscar contadores apenas para as caixas desta página
+    const ids = lista.map((c) => c.id).filter(Boolean)
+
+    if (ids.length) {
+      const [procRes, docRes] = await Promise.all([
+        supabase.from("processos").select("caixa_id").in("caixa_id", ids),
+        supabase.from("documentos_adm").select("caixa_id").in("caixa_id", ids),
+      ])
+
+      // Monta mapas de contagem no front
+      const procMap: Record<string, number> = {}
+      if (!procRes.error && procRes.data) {
+        for (const r of procRes.data as { caixa_id: string }[]) {
+          procMap[r.caixa_id] = (procMap[r.caixa_id] || 0) + 1
+        }
+      }
+
+      const docMap: Record<string, number> = {}
+      if (!docRes.error && docRes.data) {
+        for (const r of docRes.data as { caixa_id: string }[]) {
+          docMap[r.caixa_id] = (docMap[r.caixa_id] || 0) + 1
+        }
+      }
+
+      setCountProc(procMap)
+      setCountDoc(docMap)
+    } else {
+      setCountProc({})
+      setCountDoc({})
+    }
+
     setLoading(false)
   }
 
@@ -112,7 +154,9 @@ export default function CaixasPage() {
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) {
       showToast("Usuário não autenticado", "error")
       return
@@ -189,81 +233,111 @@ export default function CaixasPage() {
                 <th className="px-4 py-3 text-left">Cidade</th>
                 <th className="px-4 py-3 text-left">Destinação</th>
                 <th className="px-4 py-3 text-left">Observação</th>
+                {/* 🔹 Nova coluna Itens */}
+                <th className="px-4 py-3 text-left">Itens</th>
                 <th className="px-4 py-3 text-right">Operações</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr className="bg-white">
-                  <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
                     Carregando...
                   </td>
                 </tr>
               ) : caixas.length ? (
-                caixas.map((c) => (
-                  <tr key={c.id} className="bg-white hover:bg-gray-50">
-                    <td className="px-4 py-3 font-semibold">Caixa {c.numero_caixa}</td>
-                    <td className="px-4 py-3">{formatTipoCaixa(c.tipo)}</td>
-                    <td className="px-4 py-3">{c.localizacao || "—"}</td>
-                    <td className="px-4 py-3 capitalize">
-                      {c.destinacao === "preservar"
-                        ? "Preservar"
-                        : c.destinacao === "eliminar"
-                        ? "Eliminar"
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 truncate">{c.descricao || "—"}</td>
-                    <td className="px-4 py-3 text-right">
-                      {/* Botão Abrir */}
-                      <Link
-                        href={`/caixas/${c.id}`}
-                        className="inline-block px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md cursor-pointer mr-2"
-                      >
-                        Abrir
-                      </Link>
+                caixas.map((c) => {
+                  const qtd =
+                    c.tipo === "documento_administrativo"
+                      ? (countDoc[c.id] ?? 0)
+                      : (countProc[c.id] ?? 0)
 
-                      {/* Menu suspenso */}
-                      <div className="relative inline-block text-left">
-                        <button
-                          className="p-2 rounded-full hover:bg-gray-100 cursor-pointer"
-                          onClick={() => {
-                            const el = document.getElementById(`menu-${c.id}`)
-                            if (el) el.classList.toggle("hidden")
-                          }}
+                  // 🔴 lógica do badge: vermelho se >= 20, senão indigo padrão
+                  const isAlert = qtd >= 20
+                  const badgeClass = isAlert
+                    ? "bg-red-100 text-red-700 ring-1 ring-red-300"
+                    : "bg-indigo-100 text-indigo-700"
+
+                  return (
+                    <tr key={c.id} className="bg-white hover:bg-gray-50">
+                      <td className="px-4 py-3 font-semibold">Caixa {c.numero_caixa}</td>
+                      <td className="px-4 py-3">{formatTipoCaixa(c.tipo)}</td>
+                      <td className="px-4 py-3">{c.localizacao || "—"}</td>
+                      <td className="px-4 py-3 capitalize">
+                        {c.destinacao === "preservar"
+                          ? "Preservar"
+                          : c.destinacao === "eliminar"
+                          ? "Eliminar"
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 truncate">{c.descricao || "—"}</td>
+
+                      {/* 🔹 Badge de quantidade */}
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}
+                          title={
+                            c.tipo === "documento_administrativo"
+                              ? `${qtd} documento(s) administrativo(s)`
+                              : `${qtd} processo(s)`
+                          }
                         >
-                          ⋮
-                        </button>
-                        <div
-                          id={`menu-${c.id}`}
-                          className="hidden absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+                          {qtd}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3 text-right">
+                        {/* Botão Abrir */}
+                        <Link
+                          href={`/caixas/${c.id}`}
+                          className="inline-block px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md cursor-pointer mr-2"
                         >
+                          Abrir
+                        </Link>
+
+                        {/* Menu suspenso */}
+                        <div className="relative inline-block text-left">
                           <button
+                            className="p-2 rounded-full hover:bg-gray-100 cursor-pointer"
                             onClick={() => {
-                              handleEdit(c)
-                              document.getElementById(`menu-${c.id}`)?.classList.add("hidden")
+                              const el = document.getElementById(`menu-${c.id}`)
+                              if (el) el.classList.toggle("hidden")
                             }}
-                            className="block w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-gray-50 cursor-pointer"
                           >
-                            Editar
+                            ⋮
                           </button>
-                          <button
-                            onClick={() => {
-                              setDeleteId(c.id)
-                              setShowConfirm(true)
-                              document.getElementById(`menu-${c.id}`)?.classList.add("hidden")
-                            }}
-                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 cursor-pointer"
+                          <div
+                            id={`menu-${c.id}`}
+                            className="hidden absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
                           >
-                            Excluir
-                          </button>
+                            <button
+                              onClick={() => {
+                                handleEdit(c)
+                                document.getElementById(`menu-${c.id}`)?.classList.add("hidden")
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-gray-50 cursor-pointer"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => {
+                                setDeleteId(c.id)
+                                setShowConfirm(true)
+                                document.getElementById(`menu-${c.id}`)?.classList.add("hidden")
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 cursor-pointer"
+                            >
+                              Excluir
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  )
+                })
               ) : (
                 <tr className="bg-white">
-                  <td colSpan={6} className="px-4 py-6 text-center text-gray-500 italic">
+                  <td colSpan={7} className="px-4 py-6 text-center text-gray-500 italic">
                     Nenhuma caixa cadastrada
                   </td>
                 </tr>
@@ -272,26 +346,31 @@ export default function CaixasPage() {
           </table>
         </div>
 
-        {/* Paginação */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-3 mt-4">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
-            >
-              ← Anterior
-            </button>
-            <span className="text-sm text-gray-600">
-              Página {page} de {totalPages}
-            </span>
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
-            >
-              Próxima →
-            </button>
+        {/* Paginação + contador */}
+        {(Math.ceil(total / pageSize) > 1 || total > 0) && (
+          <div className="flex flex-col md:flex-row justify-between items-center gap-3 mt-4 text-sm text-gray-600">
+            <span>Total de registros: {total}</span>
+            {Math.ceil(total / pageSize) > 1 && (
+              <div className="flex items-center gap-3">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
+                >
+                  ← Anterior
+                </button>
+                <span>
+                  Página {page} de {Math.ceil(total / pageSize)}
+                </span>
+                <button
+                  disabled={page === Math.ceil(total / pageSize)}
+                  onClick={() => setPage((p) => Math.min(Math.ceil(total / pageSize), p + 1))}
+                  className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
+                >
+                  Próxima →
+                </button>
+              </div>
+            )}
           </div>
         )}
 

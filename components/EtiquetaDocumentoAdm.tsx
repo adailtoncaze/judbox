@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient"
 import Image from "next/image"
 
 type EtiquetaDocumentoAdmProps = {
+  caixaId: string   // 🔹 novo: id real da caixa
   numero: string
   destinacao?: "preservar" | "eliminar" | null
   observacao?: string
@@ -13,6 +14,7 @@ type EtiquetaDocumentoAdmProps = {
 }
 
 export default function EtiquetaDocumentoAdm({
+  caixaId,
   numero,
   destinacao,
   observacao,
@@ -20,7 +22,9 @@ export default function EtiquetaDocumentoAdm({
   ano_max,
 }: EtiquetaDocumentoAdmProps) {
   const [zona, setZona] = useState<string>("")
+  const [docsObs, setDocsObs] = useState<string>("")
 
+  // 🔹 Pega a zona do e-mail do usuário
   useEffect(() => {
     async function loadUser() {
       const { data } = await supabase.auth.getUser()
@@ -30,6 +34,26 @@ export default function EtiquetaDocumentoAdm({
     }
     loadUser()
   }, [])
+
+  // 🔹 Buscar documentos vinculados a esta caixa
+  useEffect(() => {
+    async function loadDocs() {
+      if (!caixaId) return
+      const { data, error } = await supabase
+        .from("documentos_adm")
+        .select("especie_documental, data_limite")
+        .eq("caixa_id", caixaId)
+        .order("data_limite", { ascending: true })
+
+      if (!error && data) {
+        const obsString = data
+          .map((d) => `${d.especie_documental} - ${d.data_limite ?? "—"}`)
+          .join("; ")
+        setDocsObs(obsString)
+      }
+    }
+    loadDocs()
+  }, [caixaId])
 
   return (
     <div
@@ -100,12 +124,11 @@ export default function EtiquetaDocumentoAdm({
       </div>
 
       {/* Linha 9 - Observações */}
-
       <div className="text-center text-white font-semibold border-b border-black py-1 bg-indigo-600 text-sm">
         Observações
       </div>
-      <div className="text-center gap-2 py-1 px-2 text-sm">
-        <span>{observacao}</span>
+      <div className="gap-2 py-1 px-2 text-[18px]">
+        <span>{docsObs || observacao || "—"}</span>
       </div>
     </div>
   )
