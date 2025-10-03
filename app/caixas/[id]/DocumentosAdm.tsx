@@ -199,7 +199,7 @@ export default function DocumentosAdm() {
         <table className="w-full text-sm border-separate border-spacing-y-1">
           <thead>
             <tr className="bg-gray-100 text-gray-700 font-medium">
-              <th className="px-4 py-3 text-left">Espécie</th>
+              <th className="px-4 py-3 text-left">Espécie Documental</th>
               <th className="px-4 py-3 text-left">Ano Limite</th>
               <th className="px-4 py-3 text-left">Qtd. Caixas</th>
               <th className="px-4 py-3 text-left">Nº Caixas</th>

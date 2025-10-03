@@ -72,7 +72,7 @@ export default function CaixasPage() {
     const { data, error, count } = await supabase
       .from("caixas")
       .select("*", { count: "exact" })
-      .order("numero_caixa", { ascending: true })
+      .order("data_criacao", { ascending: false })
       .range(start, end)
 
     if (error) {

@@ -411,34 +411,46 @@ export default function CaixaDetailPage() {
 
               {/* Formulário */}
               <form onSubmit={handleSubmit} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs mb-1 text-gray-700">Tipo</label>
-                    <select
-                      value={form.tipo_processo}
-                      onChange={(e) =>
-                        setForm({ ...form, tipo_processo: e.target.value as Processo["tipo_processo"] })
-                      }
-                      className={inputClass}
-                      required
-                    >
-                      <option value="">Selecione</option>
-                      <option value="judicial">Judicial</option>
-                      <option value="administrativo">Administrativo</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs mb-1 text-gray-700">Classe Processual</label>
-                    <input
-                      type="text"
-                      value={form.classe_processual}
-                      onChange={(e) => setForm({ ...form, classe_processual: e.target.value })}
-                      className={inputClass}
-                      required
-                    />
-                  </div>
+                {/* Tipo - ocupa a linha toda */}
+                <div>
+                  <label className="block text-xs mb-1 text-gray-700">Tipo</label>
+                  <select
+                    value={form.tipo_processo}
+                    onChange={(e) =>
+                      setForm({ ...form, tipo_processo: e.target.value as Processo["tipo_processo"] })
+                    }
+                    className={inputClass}
+                    required
+                  >
+                    <option value="">Selecione</option>
+                    <option value="judicial">Judicial</option>
+                    <option value="administrativo">Administrativo</option>
+                  </select>
                 </div>
 
+                {/* Classe Processual - abaixo do Tipo, linha toda */}
+                <div>
+                  <label className="block text-xs mb-1 text-gray-700">Classe Processual</label>
+                  <input
+                    list="classes-processuais"
+                    type="text"
+                    value={form.classe_processual}
+                    onChange={(e) => setForm({ ...form, classe_processual: e.target.value })}
+                    className={inputClass}
+                    placeholder="Digite ou selecione"
+                    required
+                  />
+                  <datalist id="classes-processuais">
+                    <option value="Ação de Impugnação de Mandato Eletivo" />
+                    <option value="Ação de Investigação Judicial Eleitoral" />
+                    <option value="Prestação de Contas" />
+                    <option value="Registro de Candidaturas" />
+                    <option value="Representação" />
+                    <option value="Suspensão dos Direitos Políticos" />
+                  </datalist>
+                </div>
+
+                {/* Número e Protocolo lado a lado */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs mb-1 text-gray-700">Número do Processo</label>
@@ -461,6 +473,7 @@ export default function CaixaDetailPage() {
                   </div>
                 </div>
 
+                {/* Ano, Volumes e Nº Caixas */}
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs mb-1 text-gray-700">Ano</label>
@@ -503,6 +516,7 @@ export default function CaixaDetailPage() {
                   </div>
                 </div>
 
+                {/* Observação */}
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Observação</label>
                   <textarea
@@ -512,6 +526,7 @@ export default function CaixaDetailPage() {
                   />
                 </div>
 
+                {/* Botão */}
                 <div className="flex justify-end">
                   <button
                     type="submit"
@@ -521,6 +536,7 @@ export default function CaixaDetailPage() {
                   </button>
                 </div>
               </form>
+
             </div>
           </div>
         )}
