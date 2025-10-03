@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabaseClient"
 import AuthGuard from "@/components/AuthGuard"
 import Header from "@/components/Header"
 import { useToast } from "@/hooks/useToast"
+import { SquaresPlusIcon } from "@heroicons/react/24/outline"
+import { CheckIcon } from "@heroicons/react/24/outline"
 
 type Caixa = {
   id: string
@@ -21,8 +23,8 @@ const formatTipoCaixa = (v: Caixa["tipo"]) =>
   v === "processo_judicial"
     ? "Processo Judicial"
     : v === "processo_administrativo"
-    ? "Processo Administrativo"
-    : "Documento Administrativo"
+      ? "Processo Administrativo"
+      : "Documento Administrativo"
 
 export default function CaixasPage() {
   const { showToast } = useToast()
@@ -34,7 +36,7 @@ export default function CaixasPage() {
   const [total, setTotal] = useState(0)
   const pageSize = 10
 
-  // 🔹 Contadores por caixa (processos e documentos)
+  // Contadores por caixa
   const [countProc, setCountProc] = useState<Record<string, number>>({})
   const [countDoc, setCountDoc] = useState<Record<string, number>>({})
 
@@ -46,13 +48,16 @@ export default function CaixasPage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
+  // Dropdown aberto
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+
   // Formulário
   const [form, setForm] = useState({
     numero_caixa: "",
     tipo: "" as Caixa["tipo"] | "",
     descricao: "",
     localizacao: "",
-    destinacao: "preservar" as "preservar" | "eliminar", // novo campo
+    destinacao: "preservar" as "preservar" | "eliminar",
   })
 
   const inputClass =
@@ -84,16 +89,13 @@ export default function CaixasPage() {
     setCaixas(lista)
     setTotal(count || 0)
 
-    // 🔹 Buscar contadores apenas para as caixas desta página
     const ids = lista.map((c) => c.id).filter(Boolean)
-
     if (ids.length) {
       const [procRes, docRes] = await Promise.all([
         supabase.from("processos").select("caixa_id").in("caixa_id", ids),
         supabase.from("documentos_adm").select("caixa_id").in("caixa_id", ids),
       ])
 
-      // Monta mapas de contagem no front
       const procMap: Record<string, number> = {}
       if (!procRes.error && procRes.data) {
         for (const r of procRes.data as { caixa_id: string }[]) {
@@ -121,6 +123,27 @@ export default function CaixasPage() {
   useEffect(() => {
     loadCaixas()
   }, [page])
+
+  // ✅ Correção: bloquear scroll do body ao abrir modais
+  useEffect(() => {
+    if (showModal || showConfirm) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+  }, [showModal, showConfirm])
+
+  // ✅ Fechar menu pop-up ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as HTMLElement
+      if (!target.closest(".dropdown-menu") && !target.closest(".dropdown-trigger")) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener("click", handleClickOutside)
+    return () => document.removeEventListener("click", handleClickOutside)
+  }, [])
 
   const openCreateModal = () => {
     setEditing(null)
@@ -167,7 +190,7 @@ export default function CaixasPage() {
       tipo: form.tipo as Caixa["tipo"],
       descricao: form.descricao?.trim() || null,
       localizacao: form.localizacao?.trim() || null,
-      destinacao: form.destinacao, // novo campo
+      destinacao: form.destinacao,
       user_id: user.id,
     }
 
@@ -217,9 +240,9 @@ export default function CaixasPage() {
           <h1 className="text-2xl font-bold text-indigo-700">📦 Caixas</h1>
           <button
             onClick={openCreateModal}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow text-sm cursor-pointer"
-          >
-            + Nova Caixa
+            className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 flex items-center justify-center cursor-pointer">
+            <span className="mr-3 text-sm font-semibold">Nova Caixa</span>
+            <SquaresPlusIcon className="h-6 w-6 text-gray-700" />
           </button>
         </div>
 
@@ -233,7 +256,6 @@ export default function CaixasPage() {
                 <th className="px-4 py-3 text-left">Cidade</th>
                 <th className="px-4 py-3 text-left">Destinação</th>
                 <th className="px-4 py-3 text-left">Observação</th>
-                {/* 🔹 Nova coluna Itens */}
                 <th className="px-4 py-3 text-left">Itens</th>
                 <th className="px-4 py-3 text-right">Operações</th>
               </tr>
@@ -252,7 +274,6 @@ export default function CaixasPage() {
                       ? (countDoc[c.id] ?? 0)
                       : (countProc[c.id] ?? 0)
 
-                  // 🔴 lógica do badge: vermelho se >= 20, senão indigo padrão
                   const isAlert = qtd >= 20
                   const badgeClass = isAlert
                     ? "bg-red-100 text-red-700 ring-1 ring-red-300"
@@ -260,34 +281,23 @@ export default function CaixasPage() {
 
                   return (
                     <tr key={c.id} className="bg-white hover:bg-gray-50">
-                      <td className="px-4 py-3 font-semibold">Caixa {c.numero_caixa}</td>
+                      <td className="text-center px-4 py-3 bg-indigo-50 font-semibold">
+                        Caixa {c.numero_caixa}
+                      </td>
                       <td className="px-4 py-3">{formatTipoCaixa(c.tipo)}</td>
                       <td className="px-4 py-3">{c.localizacao || "—"}</td>
                       <td className="px-4 py-3 capitalize">
-                        {c.destinacao === "preservar"
-                          ? "Preservar"
-                          : c.destinacao === "eliminar"
-                          ? "Eliminar"
-                          : "—"}
+                        {c.destinacao === "preservar" ? "Preservar" : "Eliminar"}
                       </td>
                       <td className="px-4 py-3 truncate">{c.descricao || "—"}</td>
-
-                      {/* 🔹 Badge de quantidade */}
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}
-                          title={
-                            c.tipo === "documento_administrativo"
-                              ? `${qtd} documento(s) administrativo(s)`
-                              : `${qtd} processo(s)`
-                          }
                         >
                           {qtd}
                         </span>
                       </td>
-
                       <td className="px-4 py-3 text-right">
-                        {/* Botão Abrir */}
                         <Link
                           href={`/caixas/${c.id}`}
                           className="inline-block px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md cursor-pointer mr-2"
@@ -298,38 +308,39 @@ export default function CaixasPage() {
                         {/* Menu suspenso */}
                         <div className="relative inline-block text-left">
                           <button
-                            className="p-2 rounded-full hover:bg-gray-100 cursor-pointer"
-                            onClick={() => {
-                              const el = document.getElementById(`menu-${c.id}`)
-                              if (el) el.classList.toggle("hidden")
+                            className="dropdown-trigger p-2 rounded-full hover:bg-gray-100 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setOpenMenuId(openMenuId === c.id ? null : c.id)
                             }}
                           >
                             ⋮
                           </button>
-                          <div
-                            id={`menu-${c.id}`}
-                            className="hidden absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
-                          >
-                            <button
-                              onClick={() => {
-                                handleEdit(c)
-                                document.getElementById(`menu-${c.id}`)?.classList.add("hidden")
-                              }}
-                              className="block w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-gray-50 cursor-pointer"
+                          {openMenuId === c.id && (
+                            <div
+                              className="dropdown-menu absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
                             >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => {
-                                setDeleteId(c.id)
-                                setShowConfirm(true)
-                                document.getElementById(`menu-${c.id}`)?.classList.add("hidden")
-                              }}
-                              className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 cursor-pointer"
-                            >
-                              Excluir
-                            </button>
-                          </div>
+                              <button
+                                onClick={() => {
+                                  handleEdit(c)
+                                  setOpenMenuId(null)
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-gray-50 cursor-pointer"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setDeleteId(c.id)
+                                  setShowConfirm(true)
+                                  setOpenMenuId(null)
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 cursor-pointer"
+                              >
+                                Excluir
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -346,31 +357,29 @@ export default function CaixasPage() {
           </table>
         </div>
 
-        {/* Paginação + contador */}
-        {(Math.ceil(total / pageSize) > 1 || total > 0) && (
+        {/* Paginação */}
+        {totalPages > 1 && (
           <div className="flex flex-col md:flex-row justify-between items-center gap-3 mt-4 text-sm text-gray-600">
             <span>Total de registros: {total}</span>
-            {Math.ceil(total / pageSize) > 1 && (
-              <div className="flex items-center gap-3">
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
-                >
-                  ← Anterior
-                </button>
-                <span>
-                  Página {page} de {Math.ceil(total / pageSize)}
-                </span>
-                <button
-                  disabled={page === Math.ceil(total / pageSize)}
-                  onClick={() => setPage((p) => Math.min(Math.ceil(total / pageSize), p + 1))}
-                  className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
-                >
-                  Próxima →
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
+              >
+                ← Anterior
+              </button>
+              <span>
+                Página {page} de {totalPages}
+              </span>
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
+              >
+                Próxima →
+              </button>
+            </div>
           </div>
         )}
 
@@ -401,7 +410,6 @@ export default function CaixasPage() {
                     required
                   />
                 </div>
-                {/* Novo campo Destinação */}
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Destinação</label>
                   <select
@@ -415,7 +423,6 @@ export default function CaixasPage() {
                     <option value="eliminar">Eliminar</option>
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Tipo</label>
                   <select
@@ -430,7 +437,6 @@ export default function CaixasPage() {
                     <option value="documento_administrativo">Documento Administrativo</option>
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Cidade</label>
                   <input
@@ -440,7 +446,6 @@ export default function CaixasPage() {
                     className={inputClass}
                   />
                 </div>
-
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Observação</label>
                   <textarea
@@ -449,13 +454,12 @@ export default function CaixasPage() {
                     className={inputClass}
                   />
                 </div>
-
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow text-sm cursor-pointer"
-                  >
-                    {editing ? "Salvar Alterações" : "Salvar Caixa"}
+                    className="p-3 rounded-lg bg-indigo-100 border border-indigo-300 hover:bg-indigo-200 flex items-center justify-center cursor-pointer">
+                    <span className="mr-2 text-sm">{editing ? "Salvar Alterações" : "Salvar Caixa"}</span>
+                    <CheckIcon className="h-4 w-4 text-gray-700" />
                   </button>
                 </div>
               </form>

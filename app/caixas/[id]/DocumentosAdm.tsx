@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { useToast } from "@/hooks/useToast"
+import { CheckIcon, DocumentTextIcon, PrinterIcon } from "@heroicons/react/24/outline"
 
 type DocumentoAdm = {
   id: string
@@ -179,17 +180,17 @@ export default function DocumentosAdm() {
         <div className="flex gap-2">
           <button
             onClick={openCreateModal}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow"
-          >
-            + Novo Documento
+            className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 flex items-center justify-center cursor-pointer">
+            <span className="mr-3 text-sm font-semibold">Novo Documento</span>
+            <DocumentTextIcon className="h-6 w-6" />
           </button>
           <button
             onClick={() =>
               window.open(`/etiquetas/${caixaId}?tipo=documento_administrativo`, "_blank")
             }
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow"
-          >
-            Imprimir Etiqueta
+            className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 flex items-center justify-center cursor-pointer">
+            <span className="mr-3 text-sm font-semibold">Etiqueta</span>
+            <PrinterIcon className="h-6 w-6 text-gray-700" />
           </button>
         </div>
       </div>
@@ -224,7 +225,7 @@ export default function DocumentosAdm() {
                   <td className="px-4 py-3 text-right space-x-2">
                     <button
                       onClick={() => handleEdit(d)}
-                      className="text-yellow-600 hover:underline"
+                      className="text-yellow-600 hover:underline cursor-pointer"
                     >
                       Editar
                     </button>
@@ -233,7 +234,7 @@ export default function DocumentosAdm() {
                         setDeleteId(d.id)
                         setShowConfirm(true)
                       }}
-                      className="text-red-600 hover:underline"
+                      className="text-red-600 hover:underline cursor-pointer"
                     >
                       Excluir
                     </button>
@@ -289,7 +290,7 @@ export default function DocumentosAdm() {
               </h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 cursor-pointer"
               >
                 ✕
               </button>
@@ -357,9 +358,9 @@ export default function DocumentosAdm() {
               <div className="md:col-span-2 flex justify-end mt-1">
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow text-sm"
-                >
-                  {editing ? "Salvar Alterações" : "Salvar Documento"}
+                  className="p-3 rounded-lg bg-indigo-100 border border-indigo-300 hover:bg-indigo-200 flex items-center justify-center cursor-pointer">
+                    <span className="mr-2 text-sm">{editing ? "Salvar Alterações" : "Salvar Documento"}</span>
+                    <CheckIcon className="h-4 w-4 text-gray-700" />
                 </button>
               </div>
             </form>
@@ -376,13 +377,13 @@ export default function DocumentosAdm() {
             <div className="flex justify-center gap-3">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="px-4 py-2 rounded-lg border"
+                className="px-4 py-2 rounded-lg border cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white"
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white cursor-pointer"
               >
                 Excluir
               </button>

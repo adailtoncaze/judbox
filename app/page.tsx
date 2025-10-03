@@ -5,6 +5,12 @@ import Link from "next/link"
 import { supabase } from "@/lib/supabaseClient"
 import AuthGuard from "@/components/AuthGuard"
 import Header from "@/components/Header"
+import {
+  ArchiveBoxIcon,
+  ClipboardDocumentCheckIcon,
+  ScaleIcon,
+  DocumentTextIcon,
+} from "@heroicons/react/24/outline"
 
 type Caixa = {
   id: string
@@ -80,31 +86,31 @@ export default function DashboardPage() {
     <AuthGuard>
       <Header />
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Título + CTA elegante */}
+        {/* Cabeçalho */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-indigo-700">Dashboard</h1>
-            <p className="text-gray-600">Resumo do inventário</p>
+            <p className="text-gray-600 text-sm">Resumo geral do inventário</p>
           </div>
           <Link
             href="/caixas"
-            className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-100 transition"
           >
-            Ir para Caixas <span aria-hidden>→</span>
+            Ir para Caixas →
           </Link>
         </div>
 
-        {/* Estatísticas */}
+        {/* Estatísticas principais */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <CardStat title="Caixas" value={totalCaixas} />
-          <CardStat title="Processos" value={totalProcessos} />
-          <CardStat title="Proc. Judiciais" value={procJudiciais} />
-          <CardStat title="Proc. Administrativos" value={procAdm} />
+          <CardStat title="Caixas" value={totalCaixas} icon={<ArchiveBoxIcon className="h-6 w-6 text-indigo-600" />} />
+          <CardStat title="Processos" value={totalProcessos} icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-indigo-600" />} />
+          <CardStat title="Proc. Judiciais" value={procJudiciais} icon={<ScaleIcon className="h-6 w-6 text-indigo-600" />} />
+          <CardStat title="Proc. Administrativos" value={procAdm} icon={<DocumentTextIcon className="h-6 w-6 text-indigo-600" />} />
         </section>
 
         {/* Distribuição + Recentes */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow p-5">
+          <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl shadow-sm p-5 hover:shadow-md transition">
             <h2 className="font-semibold text-indigo-700 mb-3">Caixas por tipo</h2>
             <ul className="space-y-2 text-sm">
               <li className="flex justify-between"><span>Processos Judiciais</span><b>{cxJudiciais}</b></li>
@@ -116,9 +122,9 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="lg:col-span-2 bg-white rounded-xl shadow p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-indigo-700 mb-3">Caixas recentes</h2>
+          <div className="lg:col-span-2 bg-indigo-50/50 border border-indigo-100 rounded-xl shadow-sm p-5 hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-indigo-700">Caixas recentes</h2>
               <Link href="/caixas" className="text-sm text-indigo-700 hover:underline">
                 abrir lista →
               </Link>
@@ -132,11 +138,11 @@ export default function DashboardPage() {
                   <Link
                     key={cx.id}
                     href={`/caixas/${cx.id}`}
-                    className="border rounded-lg p-3 hover:shadow transition"
+                    className="border border-indigo-100 rounded-lg p-3 bg-white/80 hover:shadow-sm hover:border-indigo-200 transition"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">#{cx.numero_caixa}</span>
-                      <span className="text-[11px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">
+                      <span className="text-sm font-medium text-gray-700">Caixa {cx.numero_caixa}</span>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
                         {formatTipo(cx.tipo)}
                       </span>
                     </div>
@@ -154,11 +160,14 @@ export default function DashboardPage() {
   )
 }
 
-function CardStat({ title, value }: { title: string; value: number | string }) {
+function CardStat({ title, value, icon }: { title: string; value: number | string; icon: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl shadow p-5">
-      <div className="text-sm text-gray-500">{title}</div>
-      <div className="mt-1 text-2xl font-semibold text-gray-800">{value}</div>
+    <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl shadow-sm p-5 flex flex-col gap-2 hover:shadow-md transition">
+      <div className="flex items-center gap-2 text-gray-600 text-sm">
+        {icon}
+        <span>{title}</span>
+      </div>
+      <div className="text-2xl font-semibold text-gray-800">{value}</div>
     </div>
   )
 }
