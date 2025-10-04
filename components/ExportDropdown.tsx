@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from "react"
 import { ArrowDownTrayIcon, ChevronDownIcon } from "@heroicons/react/24/outline"
 import { exportDocsAdm, exportProcJud, exportProcAdm } from "./exportCsv"
+import { useToast } from "@/hooks/useToast"
 
 export default function ExportDropdown() {
   const [open, setOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const { showToast } = useToast()
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -51,19 +53,19 @@ export default function ExportDropdown() {
       >
         <div className="py-1">
           <button
-            onClick={() => handleExport(exportDocsAdm)}
+            onClick={() => handleExport(() => exportDocsAdm(showToast))}
             className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
           >
             Documentos Administrativos
           </button>
           <button
-            onClick={() => handleExport(exportProcJud)}
+            onClick={() => handleExport(() => exportProcJud(showToast))}
             className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
           >
             Processos Judiciais
           </button>
           <button
-            onClick={() => handleExport(exportProcAdm)}
+            onClick={() => handleExport(() => exportProcAdm(showToast))}
             className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
           >
             Processos Administrativos
