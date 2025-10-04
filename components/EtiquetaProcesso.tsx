@@ -114,16 +114,20 @@ export default function EtiquetaProcesso({
       {/* Linha 8 - Observação */}
       <div className="flex items-center gap-2 border-b border-black py-1 px-2 text-sm">
         <span className="font-semibold">Observações:</span>
-        <span>{tipo}</span>
+        <span>
+          {tipo
+            ? tipo.charAt(0).toUpperCase() + tipo.slice(1).toLowerCase()
+            : ""}
+        </span>
       </div>
 
       {/* Linha 9 - Tabela de processos */}
       <div className="flex-1 overflow-hidden">
         <table className="w-full border-collapse text-[11px] table-fixed">
           <thead>
-            <tr className="bg-gray-100 border-b border-black">
+            <tr className="bg-gray-200 border-b border-black">
               <th className="border border-black px-1 py-0.5 text-left w-[100px]">Número do processo</th>
-              <th className="border border-black px-1 py-0.5 text-left w-[50px]">Ano</th>
+              <th className="border border-black px-1 py-0.5 text-center w-[50px]">Ano</th>
               <th className="border border-black px-1 py-0.5 text-left w-[150px]">Tipo de processo</th>
             </tr>
           </thead>
@@ -131,14 +135,14 @@ export default function EtiquetaProcesso({
             {Array.from({ length: 20 }).map((_, i) => {
               const proc = processos[i]
               return (
-                <tr key={i} className="border-b border-black">
-                  <td className="border border-black px-1 py-0.5 text-[12px] w-[200px] truncate">
+                <tr key={i} className="border-b">
+                  <td className="border px-1 py-0.5 text-[12px] w-[200px] font-semibold">
                     {proc ? proc.numero_processo : "—"}
                   </td>
-                  <td className="border border-black px-1 py-0.5 text-[12px] w-[80px] text-center">
+                  <td className="border px-1 py-0.5 text-[12px] w-[80px] text-center">
                     {proc ? proc.ano : "—"}
                   </td>
-                  <td className="border border-black px-1 py-0.5 text-[12px] w-[150px] capitalize truncate">
+                  <td className="border px-1 py-0.5 text-[12px] w-[150px] truncate">
                     {proc ? proc.classe_processual : "—"}
                   </td>
                 </tr>

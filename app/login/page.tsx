@@ -127,7 +127,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full inline-flex justify-center items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 disabled:opacity-60 transition"
+                  className="w-full inline-flex cursor-pointer justify-center items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 disabled:opacity-60 transition"
                 >
                   <ArrowRightOnRectangleIcon className="h-5 w-5" />
                   {loading ? "Entrando..." : "Entrar"}

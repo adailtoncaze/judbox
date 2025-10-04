@@ -52,6 +52,7 @@ export default function CaixasPage() {
 
   // Dropdown aberto
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [loadingCaixaId, setLoadingCaixaId] = useState<string | null>(null)
 
   // Formulário
   const [form, setForm] = useState({
@@ -309,12 +310,55 @@ export default function CaixasPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Link
-                            href={`/caixas/${c.id}`}
-                            className="inline-block px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md cursor-pointer mr-2"
+                          <button
+                            onClick={async () => {
+                              setLoadingAction(true)
+                              try {
+                                // marca qual caixa está abrindo (para controlar loading individual)
+                                setLoadingCaixaId(c.id)
+                                // simula ação assíncrona — pode ser substituída por um router.push ou delay
+                                await new Promise((res) => setTimeout(res, 800))
+                                window.location.href = `/caixas/${c.id}` // redirecionamento padrão Next.js
+                              } finally {
+                                setLoadingCaixaId(null)
+                                setLoadingAction(false)
+                              }
+                            }}
+                            disabled={loadingCaixaId === c.id}
+                            className={`inline-flex items-center justify-center px-4 py-2 text-sm rounded-md mr-2
+    ${loadingCaixaId === c.id
+                                ? "bg-indigo-400 cursor-not-allowed"
+                                : "bg-indigo-600 hover:bg-indigo-700 text-white"}`}
                           >
-                            Abrir
-                          </Link>
+                            {loadingCaixaId === c.id ? (
+                              <>
+                                <svg
+                                  className="animate-spin h-4 w-4 text-white mr-2"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  ></circle>
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
+                                  ></path>
+                                </svg>
+                                Abrindo...
+                              </>
+                            ) : (
+                              <>Abrir</>
+                            )}
+                          </button>
+
 
                           {/* Menu suspenso */}
                           <div className="relative inline-block text-left">
