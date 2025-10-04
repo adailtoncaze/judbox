@@ -48,7 +48,7 @@ export default function EtiquetaDocumentoAdm({
       if (!error && data) {
         const obsString = data
           .map((d) => `${d.especie_documental} - ${d.data_limite ?? "—"}`)
-          .join("; ")
+          .join(" | ")
         setDocsObs(obsString)
       }
     }
@@ -124,10 +124,10 @@ export default function EtiquetaDocumentoAdm({
       </div>
 
       {/* Linha 9 - Observações */}
-      <div className="text-center text-white font-semibold border-b border-black py-1 bg-indigo-600 text-sm">
+      <div className="text-center text-white font-semibold border-b border-black py-1 bg-indigo-600 text-sm truncate">
         Observações
       </div>
-      <div className="gap-2 py-1 px-2 text-[18px]">
+      <div className="gap-2 py-1 px-2 text-[18px] font-semibold text-justify">
         <span>{docsObs || observacao || "—"}</span>
       </div>
     </div>

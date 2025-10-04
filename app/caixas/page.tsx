@@ -415,7 +415,18 @@ export default function CaixasPage() {
         {totalPages > 1 && (
           <div className="flex flex-col md:flex-row justify-between items-center gap-3 mt-4 text-sm text-gray-600">
             <span>Total de registros: {total}</span>
-            <div className="flex items-center gap-3">
+
+            <div className="flex items-center gap-2">
+              {/* Primeira página */}
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(1)}
+                className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
+              >
+                ⏮ Primeira
+              </button>
+
+              {/* Página anterior */}
               <button
                 disabled={page === 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -423,15 +434,27 @@ export default function CaixasPage() {
               >
                 ← Anterior
               </button>
-              <span>
+
+              <span className="mx-2">
                 Página {page} de {totalPages}
               </span>
+
+              {/* Próxima página */}
               <button
                 disabled={page === totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
               >
                 Próxima →
+              </button>
+
+              {/* Última página */}
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage(totalPages)}
+                className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
+              >
+                Última ⏭
               </button>
             </div>
           </div>
