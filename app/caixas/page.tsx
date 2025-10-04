@@ -1,13 +1,14 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabaseClient"
 import AuthGuard from "@/components/AuthGuard"
 import Header from "@/components/Header"
 import { useToast } from "@/hooks/useToast"
-import { SquaresPlusIcon } from "@heroicons/react/24/outline"
-import { CheckIcon } from "@heroicons/react/24/outline"
+import { SquaresPlusIcon, CheckIcon } from "@heroicons/react/24/outline"
+import GlobalLoader from "@/components/GlobalLoader"
+import { SkeletonTable } from "@/components/SkeletonTable"
 
 type Caixa = {
   id: string
@@ -29,7 +30,8 @@ const formatTipoCaixa = (v: Caixa["tipo"]) =>
 export default function CaixasPage() {
   const { showToast } = useToast()
   const [caixas, setCaixas] = useState<Caixa[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadingList, setLoadingList] = useState(true)      // ⬅ lista
+  const [loadingAction, setLoadingAction] = useState(false) // ⬅ ações
 
   // Paginação
   const [page, setPage] = useState(1)
@@ -64,7 +66,7 @@ export default function CaixasPage() {
     "w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
 
   async function loadCaixas() {
-    setLoading(true)
+    setLoadingList(true)
 
     const start = (page - 1) * pageSize
     const end = start + pageSize - 1
@@ -81,7 +83,7 @@ export default function CaixasPage() {
       setTotal(0)
       setCountProc({})
       setCountDoc({})
-      setLoading(false)
+      setLoadingList(false)
       return
     }
 
@@ -117,14 +119,14 @@ export default function CaixasPage() {
       setCountDoc({})
     }
 
-    setLoading(false)
+    setLoadingList(false)
   }
 
   useEffect(() => {
     loadCaixas()
   }, [page])
 
-  // ✅ Correção: bloquear scroll do body ao abrir modais
+  // ✅ Bloquear scroll quando abrir modal ou confirmação
   useEffect(() => {
     if (showModal || showConfirm) {
       document.body.style.overflow = "hidden"
@@ -171,17 +173,19 @@ export default function CaixasPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!form.tipo) {
       showToast("Selecione o tipo da caixa", "error")
       return
     }
+
+    setLoadingAction(true)
 
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) {
       showToast("Usuário não autenticado", "error")
+      setLoadingAction(false)
       return
     }
 
@@ -213,10 +217,14 @@ export default function CaixasPage() {
         await loadCaixas()
       }
     }
+
+    setLoadingAction(false)
   }
 
   const handleDelete = async () => {
     if (!deleteId) return
+    setLoadingAction(true)
+
     const { error } = await supabase.from("caixas").delete().eq("id", deleteId)
 
     if (error) {
@@ -227,6 +235,8 @@ export default function CaixasPage() {
     }
     setShowConfirm(false)
     setDeleteId(null)
+
+    setLoadingAction(false)
   }
 
   const totalPages = Math.ceil(total / pageSize)
@@ -235,6 +245,9 @@ export default function CaixasPage() {
     <AuthGuard>
       <Header />
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* Loader global para ações */}
+        <GlobalLoader visible={loadingAction} />
+
         {/* Cabeçalho */}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-indigo-700">📦 Caixas</h1>
@@ -260,100 +273,97 @@ export default function CaixasPage() {
                 <th className="px-4 py-3 text-right">Operações</th>
               </tr>
             </thead>
-            <tbody>
-              {loading ? (
-                <tr className="bg-white">
-                  <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
-                    Carregando...
-                  </td>
-                </tr>
-              ) : caixas.length ? (
-                caixas.map((c) => {
-                  const qtd =
-                    c.tipo === "documento_administrativo"
-                      ? (countDoc[c.id] ?? 0)
-                      : (countProc[c.id] ?? 0)
 
-                  const isAlert = qtd >= 20
-                  const badgeClass = isAlert
-                    ? "bg-red-100 text-red-700 ring-1 ring-red-300"
-                    : "bg-indigo-100 text-indigo-700"
+            {loadingList ? (
+              <SkeletonTable rows={5} />
+            ) : (
+              <tbody>
+                {caixas.length ? (
+                  caixas.map((c) => {
+                    const qtd =
+                      c.tipo === "documento_administrativo"
+                        ? (countDoc[c.id] ?? 0)
+                        : (countProc[c.id] ?? 0)
 
-                  return (
-                    <tr key={c.id} className="bg-white hover:bg-gray-50">
-                      <td className="text-center px-4 py-3 bg-indigo-50 font-semibold">
-                        Caixa {c.numero_caixa}
-                      </td>
-                      <td className="px-4 py-3">{formatTipoCaixa(c.tipo)}</td>
-                      <td className="px-4 py-3">{c.localizacao || "—"}</td>
-                      <td className="px-4 py-3 capitalize">
-                        {c.destinacao === "preservar" ? "Preservar" : "Eliminar"}
-                      </td>
-                      <td className="px-4 py-3 truncate">{c.descricao || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}
-                        >
-                          {qtd}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Link
-                          href={`/caixas/${c.id}`}
-                          className="inline-block px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md cursor-pointer mr-2"
-                        >
-                          Abrir
-                        </Link>
+                    const isAlert = qtd >= 20
+                    const badgeClass = isAlert
+                      ? "bg-red-100 text-red-700 ring-1 ring-red-300"
+                      : "bg-indigo-100 text-indigo-700"
 
-                        {/* Menu suspenso */}
-                        <div className="relative inline-block text-left">
-                          <button
-                            className="dropdown-trigger p-2 rounded-full hover:bg-gray-100 cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setOpenMenuId(openMenuId === c.id ? null : c.id)
-                            }}
+                    return (
+                      <tr key={c.id} className="bg-white hover:bg-gray-50">
+                        <td className="text-center px-4 py-3 bg-indigo-50 font-semibold">
+                          Caixa {c.numero_caixa}
+                        </td>
+                        <td className="px-4 py-3">{formatTipoCaixa(c.tipo)}</td>
+                        <td className="px-4 py-3">{c.localizacao || "—"}</td>
+                        <td className="px-4 py-3 capitalize">
+                          {c.destinacao === "preservar" ? "Preservar" : "Eliminar"}
+                        </td>
+                        <td className="px-4 py-3 truncate">{c.descricao || "—"}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}
                           >
-                            ⋮
-                          </button>
-                          {openMenuId === c.id && (
-                            <div
-                              className="dropdown-menu absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+                            {qtd}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Link
+                            href={`/caixas/${c.id}`}
+                            className="inline-block px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md cursor-pointer mr-2"
+                          >
+                            Abrir
+                          </Link>
+
+                          {/* Menu suspenso */}
+                          <div className="relative inline-block text-left">
+                            <button
+                              className="dropdown-trigger p-2 rounded-full hover:bg-gray-100 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(openMenuId === c.id ? null : c.id)
+                              }}
                             >
-                              <button
-                                onClick={() => {
-                                  handleEdit(c)
-                                  setOpenMenuId(null)
-                                }}
-                                className="block w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-gray-50 cursor-pointer"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setDeleteId(c.id)
-                                  setShowConfirm(true)
-                                  setOpenMenuId(null)
-                                }}
-                                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 cursor-pointer"
-                              >
-                                Excluir
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              ) : (
-                <tr className="bg-white">
-                  <td colSpan={7} className="px-4 py-6 text-center text-gray-500 italic">
-                    Nenhuma caixa cadastrada
-                  </td>
-                </tr>
-              )}
-            </tbody>
+                              ⋮
+                            </button>
+                            {openMenuId === c.id && (
+                              <div className="dropdown-menu absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                <button
+                                  onClick={() => {
+                                    handleEdit(c)
+                                    setOpenMenuId(null)
+                                  }}
+                                  className="block w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setDeleteId(c.id)
+                                    setShowConfirm(true)
+                                    setOpenMenuId(null)
+                                  }}
+                                  className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  Excluir
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                ) : (
+                  <tr className="bg-white">
+                    <td colSpan={7} className="px-4 py-6 text-center text-gray-500 italic">
+                      Nenhuma caixa cadastrada
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            )}
           </table>
         </div>
 

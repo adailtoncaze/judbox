@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { useToast } from "@/hooks/useToast"
+import GlobalLoader from "@/components/GlobalLoader"
+import { SkeletonTable } from "@/components/SkeletonTable"
 import { CheckIcon, DocumentTextIcon, PrinterIcon } from "@heroicons/react/24/outline"
 
 type DocumentoAdm = {
@@ -23,7 +25,8 @@ export default function DocumentosAdm() {
   const { showToast } = useToast()
 
   const [documentos, setDocumentos] = useState<DocumentoAdm[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadingList, setLoadingList] = useState(true)
+  const [loadingAction, setLoadingAction] = useState(false)
 
   // paginação
   const [page, setPage] = useState(1)
@@ -45,16 +48,24 @@ export default function DocumentosAdm() {
   })
 
   const inputClass =
-    "w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500"
+    "w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
 
   const safeInt = (v: string, fb = 0) => {
     const n = parseInt(v, 10)
     return Number.isFinite(n) ? n : fb
   }
 
-  async function loadDocumentos() {
-    setLoading(true)
+  // 🔹 Scroll lock para modais
+  useEffect(() => {
+    if (showModal || showConfirm) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+  }, [showModal, showConfirm])
 
+  async function loadDocumentos() {
+    setLoadingList(true)
     const start = (page - 1) * pageSize
     const end = start + pageSize - 1
 
@@ -71,7 +82,7 @@ export default function DocumentosAdm() {
     }
     setDocumentos((data || []) as DocumentoAdm[])
     setTotal(count || 0)
-    setLoading(false)
+    setLoadingList(false)
   }
 
   useEffect(() => {
@@ -80,11 +91,13 @@ export default function DocumentosAdm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoadingAction(true)
 
     const { data: authData, error: authError } = await supabase.auth.getUser()
     if (authError || !authData.user) {
       console.error("Usuário não autenticado", authError)
       showToast("Erro: usuário não autenticado", "error")
+      setLoadingAction(false)
       return
     }
 
@@ -97,21 +110,13 @@ export default function DocumentosAdm() {
     }
 
     if (editing) {
-      const { error } = await supabase
-        .from("documentos_adm")
-        .update(payload)
-        .eq("id", editing.id)
-
+      const { error } = await supabase.from("documentos_adm").update(payload).eq("id", editing.id)
       if (error) {
         console.error(error)
         showToast("Erro ao atualizar documento", "error")
       } else {
         showToast("Documento atualizado com sucesso!", "success")
       }
-
-      setEditing(null)
-      setShowModal(false)
-      loadDocumentos()
     } else {
       const { error } = await supabase.from("documentos_adm").insert([payload])
       if (error) {
@@ -120,9 +125,12 @@ export default function DocumentosAdm() {
       } else {
         showToast("Documento cadastrado com sucesso!", "success")
       }
-      setShowModal(false)
-      loadDocumentos()
     }
+
+    setShowModal(false)
+    setEditing(null)
+    await loadDocumentos()
+    setLoadingAction(false)
 
     setForm({
       especie_documental: "",
@@ -135,16 +143,20 @@ export default function DocumentosAdm() {
 
   const handleDelete = async () => {
     if (!deleteId) return
+    setLoadingAction(true)
+
     const { error } = await supabase.from("documentos_adm").delete().eq("id", deleteId)
     if (error) {
       console.error(error)
       showToast("Erro ao excluir documento", "error")
     } else {
       showToast("Documento excluído com sucesso!", "success")
+      await loadDocumentos()
     }
+
     setShowConfirm(false)
     setDeleteId(null)
-    loadDocumentos()
+    setLoadingAction(false)
   }
 
   const handleEdit = (doc: DocumentoAdm) => {
@@ -175,6 +187,10 @@ export default function DocumentosAdm() {
 
   return (
     <div className="space-y-6">
+      {/* Loader global apenas para ações CRUD */}
+      <GlobalLoader visible={loadingAction} />
+
+      {/* Cabeçalho */}
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-indigo-700">📄 Documentos Administrativos</h2>
         <div className="flex gap-2">
@@ -185,9 +201,7 @@ export default function DocumentosAdm() {
             <DocumentTextIcon className="h-6 w-6" />
           </button>
           <button
-            onClick={() =>
-              window.open(`/etiquetas/${caixaId}?tipo=documento_administrativo`, "_blank")
-            }
+            onClick={() => window.open(`/etiquetas/${caixaId}?tipo=documento_administrativo`, "_blank")}
             className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 flex items-center justify-center cursor-pointer">
             <span className="mr-3 text-sm font-semibold">Etiqueta</span>
             <PrinterIcon className="h-6 w-6 text-gray-700" />
@@ -195,6 +209,7 @@ export default function DocumentosAdm() {
         </div>
       </div>
 
+      {/* Tabela */}
       <div className="bg-gray-50 rounded-2xl shadow p-2">
         <table className="w-full text-sm border-separate border-spacing-y-1">
           <thead>
@@ -207,52 +222,50 @@ export default function DocumentosAdm() {
               <th className="px-4 py-3 text-right">Operações</th>
             </tr>
           </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
-                  Carregando...
-                </td>
-              </tr>
-            ) : documentos.length ? (
-              documentos.map((d) => (
-                <tr key={d.id} className="bg-white hover:bg-gray-50">
-                  <td className="px-4 py-3">{d.especie_documental}</td>
-                  <td className="px-4 py-3">{d.data_limite}</td>
-                  <td className="px-4 py-3">{d.quantidade_caixas}</td>
-                  <td className="px-4 py-3">{d.numero_caixas}</td>
-                  <td className="px-4 py-3">{d.observacao ?? "—"}</td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    <button
-                      onClick={() => handleEdit(d)}
-                      className="text-yellow-600 hover:underline cursor-pointer"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => {
-                        setDeleteId(d.id)
-                        setShowConfirm(true)
-                      }}
-                      className="text-red-600 hover:underline cursor-pointer"
-                    >
-                      Excluir
-                    </button>
+          {loadingList ? (
+            <SkeletonTable rows={5} />
+          ) : (
+            <tbody>
+              {documentos.length ? (
+                documentos.map((d) => (
+                  <tr key={d.id} className="bg-white hover:bg-gray-50">
+                    <td className="px-4 py-3">{d.especie_documental}</td>
+                    <td className="px-4 py-3">{d.data_limite}</td>
+                    <td className="px-4 py-3">{d.quantidade_caixas}</td>
+                    <td className="px-4 py-3">{d.numero_caixas}</td>
+                    <td className="px-4 py-3">{d.observacao ?? "—"}</td>
+                    <td className="px-4 py-3 text-right space-x-2">
+                      <button
+                        onClick={() => handleEdit(d)}
+                        className="text-yellow-600 hover:underline cursor-pointer"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeleteId(d.id)
+                          setShowConfirm(true)
+                        }}
+                        className="text-red-600 hover:underline cursor-pointer"
+                      >
+                        Excluir
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-gray-500 italic">
+                    Nenhum documento cadastrado
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-gray-500 italic">
-                  Nenhum documento cadastrado
-                </td>
-              </tr>
-            )}
-          </tbody>
+              )}
+            </tbody>
+          )}
         </table>
       </div>
 
-      {/* Paginação + contador */}
+      {/* Paginação */}
       {(totalPages > 1 || total > 0) && (
         <div className="flex flex-col md:flex-row justify-between items-center gap-3 mt-4 text-sm text-gray-600">
           <span>Total de registros: {total}</span>
@@ -280,7 +293,7 @@ export default function DocumentosAdm() {
         </div>
       )}
 
-      {/* Modal Cadastro */}
+      {/* Modal Cadastro/Edição */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
           <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl">
@@ -320,27 +333,21 @@ export default function DocumentosAdm() {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Qtd. Caixas</label>
                   <input
                     type="number"
                     value={form.quantidade_caixas}
-                    onChange={(e) =>
-                      setForm({ ...form, quantidade_caixas: safeInt(e.target.value, 1) })
-                    }
+                    onChange={(e) => setForm({ ...form, quantidade_caixas: safeInt(e.target.value, 1) })}
                     className={inputClass}
                   />
                 </div>
-
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Nº Caixas</label>
                   <input
                     type="number"
                     value={form.numero_caixas}
-                    onChange={(e) =>
-                      setForm({ ...form, numero_caixas: safeInt(e.target.value, 1) })
-                    }
+                    onChange={(e) => setForm({ ...form, numero_caixas: safeInt(e.target.value, 1) })}
                     className={inputClass}
                   />
                 </div>
@@ -359,8 +366,10 @@ export default function DocumentosAdm() {
                 <button
                   type="submit"
                   className="p-3 rounded-lg bg-indigo-100 border border-indigo-300 hover:bg-indigo-200 flex items-center justify-center cursor-pointer">
-                    <span className="mr-2 text-sm">{editing ? "Salvar Alterações" : "Salvar Documento"}</span>
-                    <CheckIcon className="h-4 w-4 text-gray-700" />
+                  <span className="mr-2 text-sm">
+                    {editing ? "Salvar Alterações" : "Salvar Documento"}
+                  </span>
+                  <CheckIcon className="h-4 w-4 text-gray-700" />
                 </button>
               </div>
             </form>

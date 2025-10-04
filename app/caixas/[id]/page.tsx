@@ -8,6 +8,8 @@ import AuthGuard from "@/components/AuthGuard"
 import Header from "@/components/Header"
 import { useToast } from "@/hooks/useToast"
 import DocumentosAdm from "./DocumentosAdm"
+import GlobalLoader from "@/components/GlobalLoader"
+import { SkeletonTable } from "@/components/SkeletonTable"
 import { CheckIcon, PrinterIcon, ScaleIcon } from "@heroicons/react/24/outline"
 
 type Caixa = {
@@ -35,8 +37,8 @@ const formatTipoCaixa = (v: Caixa["tipo"]) =>
   v === "processo_judicial"
     ? "Processo Judicial"
     : v === "processo_administrativo"
-      ? "Processo Administrativo"
-      : "Documento Administrativo"
+    ? "Processo Administrativo"
+    : "Documento Administrativo"
 
 export default function CaixaDetailPage() {
   const { showToast } = useToast()
@@ -47,7 +49,8 @@ export default function CaixaDetailPage() {
   const [loadingCaixa, setLoadingCaixa] = useState(true)
 
   const [processos, setProcessos] = useState<Processo[]>([])
-  const [loadingProc, setLoadingProc] = useState(true)
+  const [loadingList, setLoadingList] = useState(true) // lista de processos
+  const [loadingAction, setLoadingAction] = useState(false) // salvar/editar/excluir
 
   // paginação
   const [page, setPage] = useState(1)
@@ -79,6 +82,15 @@ export default function CaixaDetailPage() {
     return Number.isFinite(n) ? n : fb
   }
 
+  // 🔹 Scroll lock para modais
+  useEffect(() => {
+    if (showModal || showConfirm) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+  }, [showModal, showConfirm])
+
   // 🔹 Carregar dados da caixa
   async function loadCaixa() {
     setLoadingCaixa(true)
@@ -91,9 +103,9 @@ export default function CaixaDetailPage() {
     setLoadingCaixa(false)
   }
 
-  // 🔹 Carregar processos (com paginação)
+  // 🔹 Carregar processos
   async function loadProcessos() {
-    setLoadingProc(true)
+    setLoadingList(true)
 
     const start = (page - 1) * pageSize
     const end = start + pageSize - 1
@@ -113,7 +125,7 @@ export default function CaixaDetailPage() {
       setTotal(count || 0)
     }
 
-    setLoadingProc(false)
+    setLoadingList(false)
   }
 
   useEffect(() => {
@@ -131,6 +143,7 @@ export default function CaixaDetailPage() {
   // 🔹 Salvar processo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoadingAction(true)
 
     const payload = {
       ...form,
@@ -160,7 +173,8 @@ export default function CaixaDetailPage() {
 
     setShowModal(false)
     setEditing(null)
-    loadProcessos()
+    await loadProcessos()
+    setLoadingAction(false)
 
     setForm({
       tipo_processo: "",
@@ -177,19 +191,22 @@ export default function CaixaDetailPage() {
   // 🔹 Excluir processo
   const handleDelete = async () => {
     if (!deleteId) return
+    setLoadingAction(true)
+
     const { error } = await supabase.from("processos").delete().eq("id", deleteId)
     if (error) {
       console.error(error)
       showToast("Erro ao excluir processo", "error")
     } else {
       showToast("Processo excluído com sucesso!", "success")
-      loadProcessos()
+      await loadProcessos()
     }
+
     setShowConfirm(false)
     setDeleteId(null)
+    setLoadingAction(false)
   }
 
-  // 🔹 Editar processo
   const handleEdit = (p: Processo) => {
     setEditing(p)
     setForm({
@@ -212,8 +229,8 @@ export default function CaixaDetailPage() {
         caixa?.tipo === "processo_judicial"
           ? "judicial"
           : caixa?.tipo === "processo_administrativo"
-            ? "administrativo"
-            : "",
+          ? "administrativo"
+          : "",
       classe_processual: "",
       numero_processo: "",
       protocolo: "",
@@ -231,6 +248,9 @@ export default function CaixaDetailPage() {
     <AuthGuard>
       <Header />
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* Loader global apenas para ações CRUD */}
+        <GlobalLoader visible={loadingAction} />
+
         {/* Cabeçalho da Caixa */}
         {loadingCaixa ? (
           <p className="text-gray-500">Carregando caixa...</p>
@@ -249,16 +269,22 @@ export default function CaixaDetailPage() {
             </div>
             <div className="mt-4 flex justify-between items-center text-sm text-gray-700">
               <div className="flex flex-wrap gap-x-8 gap-y-2">
-                <span><b>Número:</b> {caixa.numero_caixa}</span>
-                <span><b>Tipo:</b> {formatTipoCaixa(caixa.tipo)}</span>
-                <span><b>Cidade:</b> {caixa.localizacao || "—"}</span>
+                <span>
+                  <b>Número:</b> {caixa.numero_caixa}
+                </span>
+                <span>
+                  <b>Tipo:</b> {formatTipoCaixa(caixa.tipo)}
+                </span>
+                <span>
+                  <b>Cidade:</b> {caixa.localizacao || "—"}
+                </span>
                 <span>
                   <b>Destinação:</b>{" "}
                   {caixa.destinacao === "preservar"
                     ? "Preservar"
                     : caixa.destinacao === "eliminar"
-                      ? "Eliminar"
-                      : "—"}
+                    ? "Eliminar"
+                    : "—"}
                 </span>
               </div>
               <Link href="/caixas" className="text-sm text-indigo-600 hover:underline">
@@ -273,7 +299,7 @@ export default function CaixaDetailPage() {
           <DocumentosAdm />
         ) : (
           <>
-            {/* 🔹 Cabeçalho da seção de processos */}
+            {/* Cabeçalho da seção de processos */}
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold text-indigo-700">⚖️ Processos</h2>
               <div className="flex gap-2">
@@ -283,9 +309,7 @@ export default function CaixaDetailPage() {
                   <span className="mr-3 text-sm font-semibold">Novo Processo</span>
                   <ScaleIcon className="h-6 w-6 text-gray-700" />
                 </button>
-
-                {/* Botão Imprimir Etiqueta */}
-                {(caixa?.tipo === "processo_judicial" || caixa?.tipo === "processo_administrativo") && (
+                {caixa && (caixa.tipo === "processo_judicial" || caixa.tipo === "processo_administrativo") && (
                   <button
                     onClick={() =>
                       window.open(
@@ -301,7 +325,7 @@ export default function CaixaDetailPage() {
               </div>
             </div>
 
-            {/* 🔹 Tabela de processos */}
+            {/* Tabela de processos */}
             <div className="bg-gray-50 rounded-2xl shadow p-2">
               <table className="w-full text-sm border-separate border-spacing-y-1">
                 <thead>
@@ -316,54 +340,52 @@ export default function CaixaDetailPage() {
                     <th className="px-4 py-3 text-right">Operações</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {loadingProc ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
-                        Carregando...
-                      </td>
-                    </tr>
-                  ) : processos.length ? (
-                    processos.map((p) => (
-                      <tr key={p.id} className="bg-white hover:bg-gray-50">
-                        <td className="px-4 py-3">{p.numero_processo}</td>
-                        <td className="px-4 py-3">{p.ano}</td>
-                        <td className="px-4 py-3">{p.protocolo ?? "—"}</td>
-                        <td className="px-4 py-3">{p.tipo_processo}</td>
-                        <td className="px-4 py-3">{p.classe_processual}</td>
-                        <td className="px-4 py-3">{p.quantidade_volumes ?? "—"}</td>
-                        <td className="px-4 py-3">{p.numero_caixas ?? "—"}</td>
-                        <td className="px-4 py-3 text-right space-x-2">
-                          <button
-                            onClick={() => handleEdit(p)}
-                            className="text-yellow-600 hover:underline cursor-pointer"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDeleteId(p.id)
-                              setShowConfirm(true)
-                            }}
-                            className="text-red-600 hover:underline cursor-pointer"
-                          >
-                            Excluir
-                          </button>
+                {loadingList ? (
+                  <SkeletonTable rows={5} />
+                ) : (
+                  <tbody>
+                    {processos.length ? (
+                      processos.map((p) => (
+                        <tr key={p.id} className="bg-white hover:bg-gray-50">
+                          <td className="px-4 py-3">{p.numero_processo}</td>
+                          <td className="px-4 py-3">{p.ano}</td>
+                          <td className="px-4 py-3">{p.protocolo ?? "—"}</td>
+                          <td className="px-4 py-3 capitalize">{p.tipo_processo}</td>
+                          <td className="px-4 py-3">{p.classe_processual}</td>
+                          <td className="px-4 py-3">{p.quantidade_volumes ?? "—"}</td>
+                          <td className="px-4 py-3">{p.numero_caixas ?? "—"}</td>
+                          <td className="px-4 py-3 text-right space-x-2">
+                            <button
+                              onClick={() => handleEdit(p)}
+                              className="text-yellow-600 hover:underline cursor-pointer"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => {
+                                setDeleteId(p.id)
+                                setShowConfirm(true)
+                              }}
+                              className="text-red-600 hover:underline cursor-pointer"
+                            >
+                              Excluir
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-6 text-center text-gray-500 italic">
+                          Nenhum processo cadastrado
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-6 text-center text-gray-500 italic">
-                        Nenhum processo cadastrado
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
+                    )}
+                  </tbody>
+                )}
               </table>
             </div>
 
-            {/* 🔹 Paginação */}
+            {/* Paginação */}
             {(totalPages > 1 || total > 0) && (
               <div className="flex flex-col md:flex-row justify-between items-center gap-3 mt-4 text-sm text-gray-600">
                 <span>Total de registros: {total}</span>
@@ -393,7 +415,7 @@ export default function CaixaDetailPage() {
           </>
         )}
 
-        {/* 🔹 Modal de cadastro/edição de processo */}
+        {/* Modal Cadastro/Edição */}
         {showModal && (
           <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
             <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl">
@@ -409,9 +431,7 @@ export default function CaixaDetailPage() {
                 </button>
               </div>
 
-              {/* Formulário */}
               <form onSubmit={handleSubmit} className="space-y-3">
-                {/* Tipo - ocupa a linha toda */}
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Tipo</label>
                   <select
@@ -427,8 +447,6 @@ export default function CaixaDetailPage() {
                     <option value="administrativo">Administrativo</option>
                   </select>
                 </div>
-
-                {/* Classe Processual - abaixo do Tipo, linha toda */}
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Classe Processual</label>
                   <input
@@ -449,8 +467,6 @@ export default function CaixaDetailPage() {
                     <option value="Suspensão dos Direitos Políticos" />
                   </datalist>
                 </div>
-
-                {/* Número e Protocolo lado a lado */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs mb-1 text-gray-700">Número do Processo</label>
@@ -472,8 +488,6 @@ export default function CaixaDetailPage() {
                     />
                   </div>
                 </div>
-
-                {/* Ano, Volumes e Nº Caixas */}
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs mb-1 text-gray-700">Ano</label>
@@ -481,10 +495,7 @@ export default function CaixaDetailPage() {
                       type="number"
                       value={form.ano}
                       onChange={(e) =>
-                        setForm({
-                          ...form,
-                          ano: safeInt(e.target.value, new Date().getFullYear()),
-                        })
+                        setForm({ ...form, ano: safeInt(e.target.value, new Date().getFullYear()) })
                       }
                       className={inputClass}
                       required
@@ -515,8 +526,6 @@ export default function CaixaDetailPage() {
                     />
                   </div>
                 </div>
-
-                {/* Observação */}
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Observação</label>
                   <textarea
@@ -525,23 +534,22 @@ export default function CaixaDetailPage() {
                     className={inputClass}
                   />
                 </div>
-
-                {/* Botão */}
                 <div className="flex justify-end">
                   <button
                     type="submit"
                     className="p-3 rounded-lg bg-indigo-100 border border-indigo-300 hover:bg-indigo-200 flex items-center justify-center cursor-pointer">
-                    <span className="mr-2 text-sm">{editing ? "Salvar Alterações" : "Salvar Processo"}</span>
+                    <span className="mr-2 text-sm">
+                      {editing ? "Salvar Alterações" : "Salvar Processo"}
+                    </span>
                     <CheckIcon className="h-4 w-4 text-gray-700" />
                   </button>
                 </div>
               </form>
-
             </div>
           </div>
         )}
 
-        {/* 🔹 Modal de confirmação */}
+        {/* Modal de confirmação */}
         {showConfirm && (
           <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
             <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm text-center">

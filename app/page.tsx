@@ -11,6 +11,7 @@ import {
   ScaleIcon,
   DocumentTextIcon,
 } from "@heroicons/react/24/outline"
+import { SkeletonCard } from "@/components/SkeletonCard"
 
 type Caixa = {
   id: string
@@ -102,24 +103,45 @@ export default function DashboardPage() {
 
         {/* Estatísticas principais */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <CardStat title="Caixas" value={totalCaixas} icon={<ArchiveBoxIcon className="h-6 w-6 text-indigo-600" />} />
-          <CardStat title="Processos" value={totalProcessos} icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-indigo-600" />} />
-          <CardStat title="Proc. Judiciais" value={procJudiciais} icon={<ScaleIcon className="h-6 w-6 text-indigo-600" />} />
-          <CardStat title="Proc. Administrativos" value={procAdm} icon={<DocumentTextIcon className="h-6 w-6 text-indigo-600" />} />
+          {loading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : (
+            <>
+              <CardStat title="Caixas" value={totalCaixas} icon={<ArchiveBoxIcon className="h-6 w-6 text-indigo-600" />} />
+              <CardStat title="Processos" value={totalProcessos} icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-indigo-600" />} />
+              <CardStat title="Proc. Judiciais" value={procJudiciais} icon={<ScaleIcon className="h-6 w-6 text-indigo-600" />} />
+              <CardStat title="Proc. Administrativos" value={procAdm} icon={<DocumentTextIcon className="h-6 w-6 text-indigo-600" />} />
+            </>
+          )}
         </section>
 
         {/* Distribuição + Recentes */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl shadow-sm p-5 hover:shadow-md transition">
             <h2 className="font-semibold text-indigo-700 mb-3">Caixas por tipo</h2>
-            <ul className="space-y-2 text-sm">
-              <li className="flex justify-between"><span>Processos Judiciais</span><b>{cxJudiciais}</b></li>
-              <li className="flex justify-between"><span>Processos Administrativos</span><b>{cxAdm}</b></li>
-              <li className="flex justify-between"><span>Documentos Administrativos</span><b>{cxDocs}</b></li>
-            </ul>
-            <Link href="/caixas" className="inline-block mt-4 text-indigo-700 hover:underline text-sm">
-              Ver todas as caixas →
-            </Link>
+            {loading ? (
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-200 animate-pulse rounded w-3/4" />
+                <div className="h-4 bg-gray-200 animate-pulse rounded w-2/3" />
+                <div className="h-4 bg-gray-200 animate-pulse rounded w-1/2" />
+              </div>
+            ) : (
+              <>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex justify-between"><span>Processos Judiciais</span><b>{cxJudiciais}</b></li>
+                  <li className="flex justify-between"><span>Processos Administrativos</span><b>{cxAdm}</b></li>
+                  <li className="flex justify-between"><span>Documentos Administrativos</span><b>{cxDocs}</b></li>
+                </ul>
+                <Link href="/caixas" className="inline-block mt-4 text-indigo-700 hover:underline text-sm">
+                  Ver todas as caixas →
+                </Link>
+              </>
+            )}
           </div>
 
           <div className="lg:col-span-2 bg-indigo-50/50 border border-indigo-100 rounded-xl shadow-sm p-5 hover:shadow-md transition">
@@ -131,7 +153,11 @@ export default function DashboardPage() {
             </div>
 
             {loading ? (
-              <p className="text-gray-500 text-sm">Carregando...</p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
+              </div>
             ) : recentes.length ? (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {recentes.map((cx) => (
