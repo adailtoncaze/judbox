@@ -12,6 +12,7 @@ import GlobalLoader from "@/components/GlobalLoader"
 import { SkeletonTable } from "@/components/SkeletonTable"
 import { Combobox } from "@headlessui/react"
 import { CheckIcon, PrinterIcon, ScaleIcon } from "@heroicons/react/24/outline"
+import ConfirmPasswordModal from "@/components/ConfirmPasswordModal"
 
 type Caixa = {
   id: string
@@ -73,6 +74,8 @@ export default function CaixaDetailPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const [loadingEtiqueta, setLoadingEtiqueta] = useState(false)
+  const [showEtiqueta, setShowEtiqueta] = useState(false)
+const [etiquetaUrl, setEtiquetaUrl] = useState("")
 
   const [form, setForm] = useState({
     tipo_processo: "" as Processo["tipo_processo"] | "",
@@ -128,7 +131,7 @@ export default function CaixaDetailPage() {
       .from("processos")
       .select("*", { count: "exact" })
       .eq("caixa_id", caixaId)
-      .order("ano", { ascending: false })
+      .order("data_criacao", { ascending: false })
       .range(start, end)
 
     if (error) {
@@ -314,58 +317,79 @@ export default function CaixaDetailPage() {
                 </button>
 
                 {caixa && (caixa.tipo === "processo_judicial" || caixa.tipo === "processo_administrativo") && (
-                  <button
-                    onClick={async () => {
-                      setLoadingEtiqueta(true)
-                      try {
-                        await new Promise((res) => setTimeout(res, 400))
-                        window.open(
-                          `/etiquetas/${caixa.id}?numero_caixa=${caixa.numero_caixa}&tipo=${caixa.tipo}`,
-                          "_blank"
-                        )
-                      } finally {
-                        setLoadingEtiqueta(false)
-                      }
-                    }}
-                    disabled={loadingEtiqueta}
-                    className={`p-3 rounded-lg border flex items-center justify-center cursor-pointer transition
-                      ${loadingEtiqueta
-                        ? "bg-indigo-200 border-indigo-300 opacity-70 cursor-not-allowed"
-                        : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
-                      }`}
-                  >
-                    {loadingEtiqueta ? (
-                      <>
-                        <svg
-                          className="animate-spin h-5 w-5 text-gray-700 mr-2"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
-                          ></path>
-                        </svg>
-                        <span className="text-sm font-semibold">Imprimindo...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="mr-3 text-sm font-semibold">Etiqueta</span>
-                        <PrinterIcon className="h-6 w-6 text-gray-700" />
-                      </>
+                  <>
+                    <button
+                      onClick={async () => {
+                        // abre o modal com iframe (sem sair da PWA)
+                        setEtiquetaUrl(`/etiquetas/${caixa.id}?numero_caixa=${caixa.numero_caixa}&tipo=${caixa.tipo}`)
+                        setShowEtiqueta(true)
+                      }}
+                      disabled={loadingEtiqueta}
+                      className={`p-3 rounded-lg border flex items-center justify-center cursor-pointer transition
+        ${loadingEtiqueta
+                          ? "bg-indigo-200 border-indigo-300 opacity-70 cursor-not-allowed"
+                          : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
+                        }`}
+                    >
+                      {loadingEtiqueta ? (
+                        <>
+                          <svg
+                            className="animate-spin h-5 w-5 text-gray-700 mr-2"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
+                            ></path>
+                          </svg>
+                          <span className="text-sm font-semibold">Abrindo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="mr-3 text-sm font-semibold">Etiqueta</span>
+                          <PrinterIcon className="h-6 w-6 text-gray-700" />
+                        </>
+                      )}
+                    </button>
+
+                    {/* Modal com IFRAME da etiqueta */}
+                    {showEtiqueta && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-2xl shadow-lg w-[90%] max-w-5xl h-[90vh] overflow-hidden flex flex-col">
+                          {/* Header do modal */}
+                          <div className="flex justify-between items-center bg-indigo-600 text-white px-4 py-2">
+                            <h2 className="text-sm font-semibold">Visualização da Etiqueta</h2>
+                            <button
+                              onClick={() => setShowEtiqueta(false)}
+                              className="text-white hover:text-gray-200 text-sm cursor-pointer"
+                            >
+                              ✕ Fechar
+                            </button>
+                          </div>
+
+                          {/* Conteúdo da etiqueta */}
+                          <iframe
+                            src={etiquetaUrl}
+                            className="flex-1 w-full border-0"
+                            title="Etiqueta"
+                          ></iframe>
+                        </div>
+                      </div>
                     )}
-                  </button>
+                  </>
                 )}
+
               </div>
             </div>
 
@@ -571,7 +595,7 @@ export default function CaixaDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs mb-1 text-gray-700">Qtd. Volumes</label>
+                    <label className="block text-xs mb-1 text-gray-700">Qtd. de Volumes</label>
                     <input
                       type="number"
                       value={form.quantidade_volumes}
@@ -586,7 +610,7 @@ export default function CaixaDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs mb-1 text-gray-700">Nº Caixas</label>
+                    <label className="block text-xs mb-1 text-gray-700">Nº de Caixas</label>
                     <input
                       type="number"
                       value={form.numero_caixas}
@@ -627,28 +651,14 @@ export default function CaixaDetailPage() {
           </div>
         )}
 
-        {/* Modal de confirmação */}
+        {/* Modal Confirmação */}
+        {/* Modal Confirmação + Senha */}
         {showConfirm && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
-            <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm text-center">
-              <h2 className="text-lg font-semibold mb-4">Confirmar exclusão</h2>
-              <p className="text-sm mb-6">Excluir este processo?</p>
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={() => setShowConfirm(false)}
-                  className="px-4 py-2 rounded-lg border cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white cursor-pointer"
-                >
-                  Excluir
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmPasswordModal
+            open={showConfirm}
+            onClose={() => setShowConfirm(false)}
+            onConfirm={handleDelete} // ⬅ executa exclusão real após senha correta
+          />
         )}
       </main>
     </AuthGuard>

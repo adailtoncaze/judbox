@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/useToast"
 import { SquaresPlusIcon, CheckIcon } from "@heroicons/react/24/outline"
 import GlobalLoader from "@/components/GlobalLoader"
 import { SkeletonTable } from "@/components/SkeletonTable"
+import ConfirmPasswordModal from "@/components/ConfirmPasswordModal"
+
 
 type Caixa = {
   id: string
@@ -545,28 +547,15 @@ export default function CaixasPage() {
         )}
 
         {/* Modal Confirmação */}
+        {/* Modal Confirmação + Senha */}
         {showConfirm && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
-            <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm text-center">
-              <h2 className="text-lg font-semibold mb-4">Confirmar exclusão</h2>
-              <p className="text-sm mb-6">Excluir esta caixa?</p>
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={() => setShowConfirm(false)}
-                  className="px-4 py-2 rounded-lg border cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white cursor-pointer"
-                >
-                  Excluir
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmPasswordModal
+            open={showConfirm}
+            onClose={() => setShowConfirm(false)}
+            onConfirm={handleDelete} // ⬅ executa exclusão real após senha correta
+          />
         )}
+
       </main>
     </AuthGuard>
   )

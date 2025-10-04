@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/useToast"
 import GlobalLoader from "@/components/GlobalLoader"
 import { SkeletonTable } from "@/components/SkeletonTable"
 import { CheckIcon, DocumentTextIcon, PrinterIcon } from "@heroicons/react/24/outline"
+import ConfirmPasswordModal from "@/components/ConfirmPasswordModal"
 
 type DocumentoAdm = {
   id: string
@@ -41,6 +42,10 @@ export default function DocumentosAdm() {
 
   const [loadingEtiqueta, setLoadingEtiqueta] = useState(false)
 
+const [showEtiqueta, setShowEtiqueta] = useState(false)
+const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) // <- sem null
+
+
   const [form, setForm] = useState({
     especie_documental: "",
     data_limite: "",
@@ -58,13 +63,7 @@ export default function DocumentosAdm() {
   }
 
   // 🔹 Scroll lock para modais
-  useEffect(() => {
-    if (showModal || showConfirm) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = ""
-    }
-  }, [showModal, showConfirm])
+ 
 
   async function loadDocumentos() {
     setLoadingList(true)
@@ -75,7 +74,7 @@ export default function DocumentosAdm() {
       .from("documentos_adm")
       .select("*", { count: "exact" })
       .eq("caixa_id", caixaId)
-      .order("data_limite", { ascending: false })
+      .order("created_at", { ascending: false })
       .range(start, end)
 
     if (error) {
@@ -202,55 +201,80 @@ export default function DocumentosAdm() {
             <span className="mr-3 text-sm font-semibold">Novo Documento</span>
             <DocumentTextIcon className="h-6 w-6" />
           </button>
+          
+{/* Botão e Modal de Etiqueta (mesmo comportamento da etiqueta de processo) */}
+<>
+  <button
+    onClick={() => {
+      const url = `/etiquetas/${caixaId}?tipo=documento_administrativo`
+      setEtiquetaUrl(url)
+      setShowEtiqueta(true)
+    }}
+    disabled={loadingEtiqueta}
+    className={`p-3 rounded-lg border flex items-center justify-center cursor-pointer transition
+      ${loadingEtiqueta
+        ? "bg-indigo-200 border-indigo-300 opacity-70 cursor-not-allowed"
+        : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
+      }`}
+  >
+    {loadingEtiqueta ? (
+      <>
+        <svg
+          className="animate-spin h-5 w-5 text-gray-700 mr-2"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          ></circle>
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
+          ></path>
+        </svg>
+        <span className="text-sm font-semibold">Abrindo...</span>
+      </>
+    ) : (
+      <>
+        <span className="mr-3 text-sm font-semibold">Etiqueta</span>
+        <PrinterIcon className="h-6 w-6 text-gray-700" />
+      </>
+    )}
+  </button>
+
+  {/* Modal da etiqueta */}
+  {showEtiqueta && (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-lg w-[90%] max-w-5xl h-[90vh] overflow-hidden flex flex-col">
+        {/* Header do modal */}
+        <div className="flex justify-between items-center bg-indigo-600 text-white px-4 py-2">
+          <h2 className="text-sm font-semibold">Visualização da Etiqueta</h2>
           <button
-            onClick={async () => {
-              setLoadingEtiqueta(true)
-              try {
-                // pequeno atraso apenas para exibir o loading antes da abertura
-                await new Promise((res) => setTimeout(res, 400))
-                window.open(`/etiquetas/${caixaId}?tipo=documento_administrativo`, "_blank")
-              } finally {
-                setLoadingEtiqueta(false)
-              }
-            }}
-            disabled={loadingEtiqueta}
-            className={`p-3 rounded-lg border flex items-center justify-center cursor-pointer transition
-    ${loadingEtiqueta
-                ? "bg-indigo-200 border-indigo-300 opacity-70 cursor-not-allowed"
-                : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
-              }`}
+            onClick={() => setShowEtiqueta(false)}
+            className="text-white hover:text-gray-200 text-sm cursor-pointer flex items-center gap-1"
           >
-            {loadingEtiqueta ? (
-              <>
-                <svg
-                  className="animate-spin h-5 w-5 text-gray-700 mr-2"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
-                  ></path>
-                </svg>
-                <span className="text-sm font-semibold">Imprimindo...</span>
-              </>
-            ) : (
-              <>
-                <span className="mr-3 text-sm font-semibold">Etiqueta</span>
-                <PrinterIcon className="h-6 w-6 text-gray-700" />
-              </>
-            )}
+            ✕ <span>Fechar</span>
           </button>
+        </div>
+
+        {/* Conteúdo da etiqueta */}
+        <iframe
+          src={etiquetaUrl}
+          className="flex-1 w-full border-0"
+          title="Etiqueta"
+        ></iframe>
+      </div>
+    </div>
+  )}
+</>
+
 
         </div>
       </div>
@@ -423,28 +447,13 @@ export default function DocumentosAdm() {
         </div>
       )}
 
-      {/* Modal Confirmar Exclusão */}
+      {/* Modal Confirmação + Senha */}
       {showConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
-          <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm text-center">
-            <h2 className="text-lg font-semibold mb-4">Confirmar exclusão</h2>
-            <p className="text-sm mb-6">Excluir este documento?</p>
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="px-4 py-2 rounded-lg border cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white cursor-pointer"
-              >
-                Excluir
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmPasswordModal
+          open={showConfirm}
+          onClose={() => setShowConfirm(false)}
+          onConfirm={handleDelete} // ⬅ executa exclusão real após senha correta
+        />
       )}
     </div>
   )
