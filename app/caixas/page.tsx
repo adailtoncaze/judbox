@@ -325,7 +325,7 @@ export default function CaixasPage() {
                               }
                             }}
                             disabled={loadingCaixaId === c.id}
-                            className={`inline-flex items-center justify-center px-4 py-2 text-sm rounded-md mr-2
+                            className={`inline-flex items-center justify-center px-4 py-2 text-sm rounded-md mr-2 cursor-pointer
     ${loadingCaixaId === c.id
                                 ? "bg-indigo-400 cursor-not-allowed"
                                 : "bg-indigo-600 hover:bg-indigo-700 text-white"}`}
