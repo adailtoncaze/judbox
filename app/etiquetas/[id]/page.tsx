@@ -138,7 +138,7 @@ export default function EtiquetasPage() {
         {/* Botão imprimir */}
         <button
           onClick={() => window.print()}
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow text-lg font-semibold print:hidden"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow text-lg font-semibold print:hidden cursor-pointer"
         >
           Imprimir
         </button>

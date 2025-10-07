@@ -11,7 +11,6 @@ import GlobalLoader from "@/components/GlobalLoader"
 import { SkeletonTable } from "@/components/SkeletonTable"
 import ConfirmPasswordModal from "@/components/ConfirmPasswordModal"
 
-
 type Caixa = {
   id: string
   numero_caixa: string | null
@@ -32,15 +31,15 @@ const formatTipoCaixa = (v: Caixa["tipo"]) =>
 export default function CaixasPage() {
   const { showToast } = useToast()
   const [caixas, setCaixas] = useState<Caixa[]>([])
-  const [loadingList, setLoadingList] = useState(true)      // ⬅ lista
-  const [loadingAction, setLoadingAction] = useState(false) // ⬅ ações
+  const [loadingList, setLoadingList] = useState(true)
+  const [loadingAction, setLoadingAction] = useState(false)
 
   // Paginação
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const pageSize = 10
 
-  // Contadores por caixa
+  // Contadores
   const [countProc, setCountProc] = useState<Record<string, number>>({})
   const [countDoc, setCountDoc] = useState<Record<string, number>>({})
 
@@ -52,16 +51,16 @@ export default function CaixasPage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  // Dropdown aberto
+  // Dropdown
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [loadingCaixaId, setLoadingCaixaId] = useState<string | null>(null)
 
-  // Formulário
+  // Formulário com valor padrão “Guarabira”
   const [form, setForm] = useState({
     numero_caixa: "",
     tipo: "" as Caixa["tipo"] | "",
     descricao: "",
-    localizacao: "",
+    localizacao: "Guarabira", // ✅ valor padrão
     destinacao: "preservar" as "preservar" | "eliminar",
   })
 
@@ -70,7 +69,6 @@ export default function CaixasPage() {
 
   async function loadCaixas() {
     setLoadingList(true)
-
     const start = (page - 1) * pageSize
     const end = start + pageSize - 1
 
@@ -129,16 +127,12 @@ export default function CaixasPage() {
     loadCaixas()
   }, [page])
 
-  // ✅ Bloquear scroll quando abrir modal ou confirmação
+  // Bloquear scroll
   useEffect(() => {
-    if (showModal || showConfirm) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = ""
-    }
+    document.body.style.overflow = showModal || showConfirm ? "hidden" : ""
   }, [showModal, showConfirm])
 
-  // ✅ Fechar menu pop-up ao clicar fora
+  // Fechar dropdown externo
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as HTMLElement
@@ -150,13 +144,14 @@ export default function CaixasPage() {
     return () => document.removeEventListener("click", handleClickOutside)
   }, [])
 
+  // ✅ Prefill de Guarabira no “Nova Caixa”
   const openCreateModal = () => {
     setEditing(null)
     setForm({
       numero_caixa: "",
       tipo: "",
       descricao: "",
-      localizacao: "",
+      localizacao: "Guarabira", // ✅ sempre padrão
       destinacao: "preservar",
     })
     setShowModal(true)
@@ -168,7 +163,7 @@ export default function CaixasPage() {
       numero_caixa: c.numero_caixa || "",
       tipo: c.tipo,
       descricao: c.descricao || "",
-      localizacao: c.localizacao || "",
+      localizacao: c.localizacao || "Guarabira", // fallback
       destinacao: c.destinacao || "preservar",
     })
     setShowModal(true)
@@ -183,38 +178,37 @@ export default function CaixasPage() {
 
     setLoadingAction(true)
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       showToast("Usuário não autenticado", "error")
       setLoadingAction(false)
       return
     }
 
+    // ✅ Garante que sempre haja cidade
+    const cidade = (form.localizacao?.trim() || "Guarabira")
+
     const payload = {
       numero_caixa: form.numero_caixa?.trim() || null,
       tipo: form.tipo as Caixa["tipo"],
       descricao: form.descricao?.trim() || null,
-      localizacao: form.localizacao?.trim() || null,
+      localizacao: cidade,
       destinacao: form.destinacao,
       user_id: user.id,
     }
 
     if (editing) {
       const { error } = await supabase.from("caixas").update(payload).eq("id", editing.id)
-      if (error) {
-        showToast("Erro ao atualizar caixa", "error")
-      } else {
+      if (error) showToast("Erro ao atualizar caixa", "error")
+      else {
         showToast("Caixa atualizada com sucesso!", "success")
         setShowModal(false)
         await loadCaixas()
       }
     } else {
       const { error } = await supabase.from("caixas").insert([payload])
-      if (error) {
-        showToast("Erro ao salvar caixa", "error")
-      } else {
+      if (error) showToast("Erro ao salvar caixa", "error")
+      else {
         showToast("Caixa cadastrada com sucesso!", "success")
         setShowModal(false)
         await loadCaixas()
@@ -229,16 +223,13 @@ export default function CaixasPage() {
     setLoadingAction(true)
 
     const { error } = await supabase.from("caixas").delete().eq("id", deleteId)
-
-    if (error) {
-      showToast("Erro ao excluir caixa", "error")
-    } else {
+    if (error) showToast("Erro ao excluir caixa", "error")
+    else {
       showToast("Caixa excluída!", "success")
       await loadCaixas()
     }
     setShowConfirm(false)
     setDeleteId(null)
-
     setLoadingAction(false)
   }
 
@@ -248,7 +239,6 @@ export default function CaixasPage() {
     <AuthGuard>
       <Header />
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Loader global para ações */}
         <GlobalLoader visible={loadingAction} />
 
         {/* Cabeçalho */}
@@ -256,7 +246,8 @@ export default function CaixasPage() {
           <h1 className="text-2xl font-bold text-indigo-700">📦 Caixas</h1>
           <button
             onClick={openCreateModal}
-            className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 flex items-center justify-center cursor-pointer">
+            className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 flex items-center justify-center cursor-pointer"
+          >
             <span className="mr-3 text-sm font-semibold">Nova Caixa</span>
             <SquaresPlusIcon className="h-6 w-6 text-gray-700" />
           </button>
@@ -264,30 +255,27 @@ export default function CaixasPage() {
 
         {/* Tabela */}
         <div className="bg-gray-50 rounded-2xl shadow p-2">
-          <table className="w-full text-sm border-separate border-spacing-y-1">
-            <thead>
-              <tr className="bg-gray-100 text-gray-700 font-medium">
-                <th className="px-4 py-3 text-left">Número</th>
-                <th className="px-4 py-3 text-left">Tipo</th>
-                <th className="px-4 py-3 text-left">Cidade</th>
-                <th className="px-4 py-3 text-left">Destinação</th>
-                <th className="px-4 py-3 text-left">Observação</th>
-                <th className="px-4 py-3 text-left">Itens</th>
-                <th className="px-4 py-3 text-right">Operações</th>
-              </tr>
-            </thead>
-
-            {loadingList ? (
-              <SkeletonTable rows={5} />
-            ) : (
+          {loadingList ? (
+            <SkeletonTable rows={5} />
+          ) : (
+            <table className="w-full text-sm border-separate border-spacing-y-1">
+              <thead>
+                <tr className="bg-gray-100 text-gray-700 font-medium">
+                  <th className="px-4 py-3 text-left">Número</th>
+                  <th className="px-4 py-3 text-left">Tipo</th>
+                  <th className="px-4 py-3 text-left">Cidade</th>
+                  <th className="px-4 py-3 text-left">Destinação</th>
+                  <th className="px-4 py-3 text-left">Observação</th>
+                  <th className="px-4 py-3 text-left">Itens</th>
+                  <th className="px-4 py-3 text-right">Operações</th>
+                </tr>
+              </thead>
               <tbody>
                 {caixas.length ? (
                   caixas.map((c) => {
-                    const qtd =
-                      c.tipo === "documento_administrativo"
-                        ? (countDoc[c.id] ?? 0)
-                        : (countProc[c.id] ?? 0)
-
+                    const qtd = c.tipo === "documento_administrativo"
+                      ? (countDoc[c.id] ?? 0)
+                      : (countProc[c.id] ?? 0)
                     const isAlert = qtd >= 20
                     const badgeClass = isAlert
                       ? "bg-red-100 text-red-700 ring-1 ring-red-300"
@@ -299,10 +287,8 @@ export default function CaixasPage() {
                           Caixa {c.numero_caixa}
                         </td>
                         <td className="px-4 py-3">{formatTipoCaixa(c.tipo)}</td>
-                        <td className="px-4 py-3">{c.localizacao || "—"}</td>
-                        <td className="px-4 py-3 capitalize">
-                          {c.destinacao === "preservar" ? "Preservar" : "Eliminar"}
-                        </td>
+                        <td className="px-4 py-3">{c.localizacao || "Guarabira"}</td>
+                        <td className="px-4 py-3 capitalize">{c.destinacao === "preservar" ? "Preservar" : "Eliminar"}</td>
                         <td className="px-4 py-3 truncate">{c.descricao || "—"}</td>
                         <td className="px-4 py-3">
                           <span
@@ -316,21 +302,20 @@ export default function CaixasPage() {
                             onClick={async () => {
                               setLoadingAction(true)
                               try {
-                                // marca qual caixa está abrindo (para controlar loading individual)
                                 setLoadingCaixaId(c.id)
-                                // simula ação assíncrona — pode ser substituída por um router.push ou delay
                                 await new Promise((res) => setTimeout(res, 800))
-                                window.location.href = `/caixas/${c.id}` // redirecionamento padrão Next.js
+                                window.location.href = `/caixas/${c.id}`
                               } finally {
                                 setLoadingCaixaId(null)
                                 setLoadingAction(false)
                               }
                             }}
                             disabled={loadingCaixaId === c.id}
-                            className={`inline-flex items-center justify-center px-4 py-2 text-sm rounded-md mr-2 cursor-pointer
-    ${loadingCaixaId === c.id
+                            className={`inline-flex items-center justify-center px-4 py-2 text-sm rounded-md mr-2 cursor-pointer ${
+                              loadingCaixaId === c.id
                                 ? "bg-indigo-400 cursor-not-allowed"
-                                : "bg-indigo-600 hover:bg-indigo-700 text-white"}`}
+                                : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                            }`}
                           >
                             {loadingCaixaId === c.id ? (
                               <>
@@ -360,7 +345,6 @@ export default function CaixasPage() {
                               <>Abrir</>
                             )}
                           </button>
-
 
                           {/* Menu suspenso */}
                           <div className="relative inline-block text-left">
@@ -409,60 +393,25 @@ export default function CaixasPage() {
                   </tr>
                 )}
               </tbody>
-            )}
-          </table>
+            </table>
+          )}
         </div>
 
         {/* Paginação */}
         {totalPages > 1 && (
           <div className="flex flex-col md:flex-row justify-between items-center gap-3 mt-4 text-sm text-gray-600">
             <span>Total de registros: {total}</span>
-
             <div className="flex items-center gap-2">
-              {/* Primeira página */}
-              <button
-                disabled={page === 1}
-                onClick={() => setPage(1)}
-                className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
-              >
-                ⏮ Primeira
-              </button>
-
-              {/* Página anterior */}
-              <button
-                disabled={page === 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
-              >
-                ← Anterior
-              </button>
-
-              <span className="mx-2">
-                Página {page} de {totalPages}
-              </span>
-
-              {/* Próxima página */}
-              <button
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
-              >
-                Próxima →
-              </button>
-
-              {/* Última página */}
-              <button
-                disabled={page === totalPages}
-                onClick={() => setPage(totalPages)}
-                className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer"
-              >
-                Última ⏭
-              </button>
+              <button disabled={page === 1} onClick={() => setPage(1)} className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer">⏮ Primeira</button>
+              <button disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer">← Anterior</button>
+              <span className="mx-2">Página {page} de {totalPages}</span>
+              <button disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer">Próxima →</button>
+              <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="px-3 py-1 rounded-md border disabled:opacity-50 cursor-pointer">Última ⏭</button>
             </div>
           </div>
         )}
 
-        {/* Modal Caixa */}
+        {/* Modal de cadastro/edição */}
         {showModal && (
           <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
             <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-lg">
@@ -470,12 +419,7 @@ export default function CaixasPage() {
                 <h3 className="text-lg font-semibold text-indigo-700">
                   {editing ? "Editar Caixa" : "Cadastrar Caixa"}
                 </h3>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-gray-500 hover:text-gray-700 cursor-pointer"
-                >
-                  ✕
-                </button>
+                <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700 cursor-pointer">✕</button>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-3">
@@ -489,19 +433,19 @@ export default function CaixasPage() {
                     required
                   />
                 </div>
+
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Destinação</label>
                   <select
                     value={form.destinacao}
-                    onChange={(e) =>
-                      setForm({ ...form, destinacao: e.target.value as "preservar" | "eliminar" })
-                    }
+                    onChange={(e) => setForm({ ...form, destinacao: e.target.value as "preservar" | "eliminar" })}
                     className={inputClass}
                   >
                     <option value="preservar">Preservar</option>
                     <option value="eliminar">Eliminar</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Tipo</label>
                   <select
@@ -516,6 +460,7 @@ export default function CaixasPage() {
                     <option value="documento_administrativo">Documento Administrativo</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Cidade</label>
                   <input
@@ -525,6 +470,7 @@ export default function CaixasPage() {
                     className={inputClass}
                   />
                 </div>
+
                 <div>
                   <label className="block text-xs mb-1 text-gray-700">Observação</label>
                   <textarea
@@ -533,10 +479,12 @@ export default function CaixasPage() {
                     className={inputClass}
                   />
                 </div>
+
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="p-3 rounded-lg bg-indigo-100 border border-indigo-300 hover:bg-indigo-200 flex items-center justify-center cursor-pointer">
+                    className="p-3 rounded-lg bg-indigo-100 border border-indigo-300 hover:bg-indigo-200 flex items-center justify-center cursor-pointer"
+                  >
                     <span className="mr-2 text-sm">{editing ? "Salvar Alterações" : "Salvar Caixa"}</span>
                     <CheckIcon className="h-4 w-4 text-gray-700" />
                   </button>
@@ -546,16 +494,9 @@ export default function CaixasPage() {
           </div>
         )}
 
-        {/* Modal Confirmação */}
-        {/* Modal Confirmação + Senha */}
         {showConfirm && (
-          <ConfirmPasswordModal
-            open={showConfirm}
-            onClose={() => setShowConfirm(false)}
-            onConfirm={handleDelete} // ⬅ executa exclusão real após senha correta
-          />
+          <ConfirmPasswordModal open={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={handleDelete} />
         )}
-
       </main>
     </AuthGuard>
   )

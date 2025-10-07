@@ -28,6 +28,7 @@ export default function DocumentosAdm() {
   const [documentos, setDocumentos] = useState<DocumentoAdm[]>([])
   const [loadingList, setLoadingList] = useState(true)
   const [loadingAction, setLoadingAction] = useState(false)
+  const [numeroCaixa, setNumeroCaixa] = useState<string | null>(null)
 
   // paginação
   const [page, setPage] = useState(1)
@@ -41,16 +42,13 @@ export default function DocumentosAdm() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const [loadingEtiqueta, setLoadingEtiqueta] = useState(false)
-
-const [showEtiqueta, setShowEtiqueta] = useState(false)
-const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) // <- sem null
-
+  const [showEtiqueta, setShowEtiqueta] = useState(false)
+  const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined)
 
   const [form, setForm] = useState({
     especie_documental: "",
     data_limite: "",
     quantidade_caixas: 1,
-    numero_caixas: 1,
     observacao: "",
   })
 
@@ -62,8 +60,20 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
     return Number.isFinite(n) ? n : fb
   }
 
-  // 🔹 Scroll lock para modais
- 
+  // 🔹 Carrega número da caixa vinculada
+  useEffect(() => {
+    async function loadCaixaNumero() {
+      const { data, error } = await supabase
+        .from("caixas")
+        .select("numero_caixa")
+        .eq("id", caixaId)
+        .single()
+
+      if (!error && data) setNumeroCaixa(data.numero_caixa)
+    }
+
+    if (caixaId) loadCaixaNumero()
+  }, [caixaId])
 
   async function loadDocumentos() {
     setLoadingList(true)
@@ -105,13 +115,16 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
     const payload = {
       ...form,
       quantidade_caixas: Number(form.quantidade_caixas) || null,
-      numero_caixas: Number(form.numero_caixas) || null,
       caixa_id: caixaId,
       user_id: authData.user.id,
+      // número da caixa será definido automaticamente no banco (trigger)
     }
 
     if (editing) {
-      const { error } = await supabase.from("documentos_adm").update(payload).eq("id", editing.id)
+      const { error } = await supabase
+        .from("documentos_adm")
+        .update(payload)
+        .eq("id", editing.id)
       if (error) {
         console.error(error)
         showToast("Erro ao atualizar documento", "error")
@@ -137,7 +150,6 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
       especie_documental: "",
       data_limite: "",
       quantidade_caixas: 1,
-      numero_caixas: 1,
       observacao: "",
     })
   }
@@ -166,7 +178,6 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
       especie_documental: doc.especie_documental,
       data_limite: doc.data_limite ?? "",
       quantidade_caixas: doc.quantidade_caixas ?? 1,
-      numero_caixas: doc.numero_caixas ?? 1,
       observacao: doc.observacao ?? "",
     })
     setShowModal(true)
@@ -178,7 +189,6 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
       especie_documental: "",
       data_limite: "",
       quantidade_caixas: 1,
-      numero_caixas: 1,
       observacao: "",
     })
     setShowModal(true)
@@ -188,7 +198,6 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
 
   return (
     <div className="space-y-6">
-      {/* Loader global apenas para ações CRUD */}
       <GlobalLoader visible={loadingAction} />
 
       {/* Cabeçalho */}
@@ -197,85 +206,76 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
         <div className="flex gap-2">
           <button
             onClick={openCreateModal}
-            className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 flex items-center justify-center cursor-pointer">
+            className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 flex items-center justify-center cursor-pointer"
+          >
             <span className="mr-3 text-sm font-semibold">Novo Documento</span>
             <DocumentTextIcon className="h-6 w-6" />
           </button>
-          
-{/* Botão e Modal de Etiqueta (mesmo comportamento da etiqueta de processo) */}
-<>
-  <button
-    onClick={() => {
-      const url = `/etiquetas/${caixaId}?tipo=documento_administrativo`
-      setEtiquetaUrl(url)
-      setShowEtiqueta(true)
-    }}
-    disabled={loadingEtiqueta}
-    className={`p-3 rounded-lg border flex items-center justify-center cursor-pointer transition
-      ${loadingEtiqueta
-        ? "bg-indigo-200 border-indigo-300 opacity-70 cursor-not-allowed"
-        : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
-      }`}
-  >
-    {loadingEtiqueta ? (
-      <>
-        <svg
-          className="animate-spin h-5 w-5 text-gray-700 mr-2"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          ></circle>
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
-          ></path>
-        </svg>
-        <span className="text-sm font-semibold">Abrindo...</span>
-      </>
-    ) : (
-      <>
-        <span className="mr-3 text-sm font-semibold">Etiqueta</span>
-        <PrinterIcon className="h-6 w-6 text-gray-700" />
-      </>
-    )}
-  </button>
 
-  {/* Modal da etiqueta */}
-  {showEtiqueta && (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-lg w-[90%] max-w-5xl h-[90vh] overflow-hidden flex flex-col">
-        {/* Header do modal */}
-        <div className="flex justify-between items-center bg-indigo-600 text-white px-4 py-2">
-          <h2 className="text-sm font-semibold">Visualização da Etiqueta</h2>
-          <button
-            onClick={() => setShowEtiqueta(false)}
-            className="text-white hover:text-gray-200 text-sm cursor-pointer flex items-center gap-1"
-          >
-            ✕ <span>Fechar</span>
-          </button>
-        </div>
+          {/* Botão e Modal de Etiqueta */}
+          <>
+            <button
+              onClick={() => {
+                const url = `/etiquetas/${caixaId}?tipo=documento_administrativo`
+                setEtiquetaUrl(url)
+                setShowEtiqueta(true)
+              }}
+              disabled={loadingEtiqueta}
+              className={`p-3 rounded-lg border flex items-center justify-center cursor-pointer transition ${
+                loadingEtiqueta
+                  ? "bg-indigo-200 border-indigo-300 opacity-70 cursor-not-allowed"
+                  : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
+              }`}
+            >
+              {loadingEtiqueta ? (
+                <>
+                  <svg
+                    className="animate-spin h-5 w-5 text-gray-700 mr-2"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
+                    ></path>
+                  </svg>
+                  <span className="text-sm font-semibold">Abrindo...</span>
+                </>
+              ) : (
+                <>
+                  <span className="mr-3 text-sm font-semibold">Etiqueta</span>
+                  <PrinterIcon className="h-6 w-6 text-gray-700" />
+                </>
+              )}
+            </button>
 
-        {/* Conteúdo da etiqueta */}
-        <iframe
-          src={etiquetaUrl}
-          className="flex-1 w-full border-0"
-          title="Etiqueta"
-        ></iframe>
-      </div>
-    </div>
-  )}
-</>
-
-
+            {showEtiqueta && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-2xl shadow-lg w-[90%] max-w-5xl h-[90vh] overflow-hidden flex flex-col">
+                  <div className="flex justify-between items-center bg-indigo-600 text-white px-4 py-2">
+                    <h2 className="text-sm font-semibold">Visualização da Etiqueta</h2>
+                    <button
+                      onClick={() => setShowEtiqueta(false)}
+                      className="text-white hover:text-gray-200 text-sm cursor-pointer flex items-center gap-1"
+                    >
+                      ✕ <span>Fechar</span>
+                    </button>
+                  </div>
+                  <iframe src={etiquetaUrl} className="flex-1 w-full border-0" title="Etiqueta"></iframe>
+                </div>
+              </div>
+            )}
+          </>
         </div>
       </div>
 
@@ -287,7 +287,7 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
               <th className="px-4 py-3 text-left">Espécie Documental</th>
               <th className="px-4 py-3 text-left">Ano Limite</th>
               <th className="px-4 py-3 text-left">Qtd. Caixas</th>
-              <th className="px-4 py-3 text-left">Nº Caixas</th>
+              <th className="px-4 py-3 text-left">Nº Caixa</th>
               <th className="px-4 py-3 text-left">Observação</th>
               <th className="px-4 py-3 text-right">Operações</th>
             </tr>
@@ -302,13 +302,10 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
                     <td className="px-4 py-3">{d.especie_documental}</td>
                     <td className="px-4 py-3">{d.data_limite}</td>
                     <td className="px-4 py-3">{d.quantidade_caixas}</td>
-                    <td className="px-4 py-3">{d.numero_caixas}</td>
+                    <td className="px-4 py-3">{d.numero_caixas ?? "—"}</td>
                     <td className="px-4 py-3">{d.observacao ?? "—"}</td>
                     <td className="px-4 py-3 text-right space-x-2">
-                      <button
-                        onClick={() => handleEdit(d)}
-                        className="text-yellow-600 hover:underline cursor-pointer"
-                      >
+                      <button onClick={() => handleEdit(d)} className="text-yellow-600 hover:underline cursor-pointer">
                         Editar
                       </button>
                       <button
@@ -371,10 +368,7 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
               <h3 className="text-lg font-semibold text-indigo-700">
                 {editing ? "Editar Documento" : "Cadastrar Documento"}
               </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-gray-500 hover:text-gray-700 cursor-pointer"
-              >
+              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700 cursor-pointer">
                 ✕
               </button>
             </div>
@@ -412,13 +406,14 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
                     className={inputClass}
                   />
                 </div>
+                {/* Número da Caixa (read-only) */}
                 <div>
-                  <label className="block text-xs mb-1 text-gray-700">Nº Caixas</label>
+                  <label className="block text-xs mb-1 text-gray-700">Número da Caixa</label>
                   <input
-                    type="number"
-                    value={form.numero_caixas}
-                    onChange={(e) => setForm({ ...form, numero_caixas: safeInt(e.target.value, 1) })}
-                    className={inputClass}
+                    type="text"
+                    value={numeroCaixa || ""}
+                    readOnly
+                    className="w-full border border-gray-200 rounded-md p-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -435,7 +430,8 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
               <div className="md:col-span-2 flex justify-end mt-1">
                 <button
                   type="submit"
-                  className="p-3 rounded-lg bg-indigo-100 border border-indigo-300 hover:bg-indigo-200 flex items-center justify-center cursor-pointer">
+                  className="p-3 rounded-lg bg-indigo-100 border border-indigo-300 hover:bg-indigo-200 flex items-center justify-center cursor-pointer"
+                >
                   <span className="mr-2 text-sm">
                     {editing ? "Salvar Alterações" : "Salvar Documento"}
                   </span>
@@ -452,7 +448,7 @@ const [etiquetaUrl, setEtiquetaUrl] = useState<string | undefined>(undefined) //
         <ConfirmPasswordModal
           open={showConfirm}
           onClose={() => setShowConfirm(false)}
-          onConfirm={handleDelete} // ⬅ executa exclusão real após senha correta
+          onConfirm={handleDelete}
         />
       )}
     </div>

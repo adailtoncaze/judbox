@@ -39,13 +39,16 @@ const formatTipoCaixa = (v: Caixa["tipo"]) =>
   v === "processo_judicial"
     ? "Processo Judicial"
     : v === "processo_administrativo"
-      ? "Processo Administrativo"
-      : "Documento Administrativo"
+    ? "Processo Administrativo"
+    : "Documento Administrativo"
 
 const classesProcessuais = [
   "Ação de Impugnação de Mandato Eletivo",
   "Ação de Investigação Judicial Eleitoral",
+  "Constatação de Propaganda Irregular",
+  "Duplicidade/Coincidência",
   "Prestação de Contas",
+  "Recurso Eleitoral",
   "Registro de Candidaturas",
   "Representação",
   "Suspensão dos Direitos Políticos",
@@ -75,7 +78,9 @@ export default function CaixaDetailPage() {
 
   const [loadingEtiqueta, setLoadingEtiqueta] = useState(false)
   const [showEtiqueta, setShowEtiqueta] = useState(false)
-const [etiquetaUrl, setEtiquetaUrl] = useState("")
+  const [etiquetaUrl, setEtiquetaUrl] = useState("")
+
+  const [numeroCaixa, setNumeroCaixa] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     tipo_processo: "" as Processo["tipo_processo"] | "",
@@ -84,7 +89,6 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
     protocolo: "",
     ano: new Date().getFullYear(),
     quantidade_volumes: 1,
-    numero_caixas: 1,
     observacao: "",
   })
 
@@ -93,8 +97,8 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
     queryClasse === ""
       ? classesProcessuais
       : classesProcessuais.filter((classe) =>
-        classe.toLowerCase().includes(queryClasse.toLowerCase())
-      )
+          classe.toLowerCase().includes(queryClasse.toLowerCase())
+        )
 
   const inputClass =
     "w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
@@ -105,21 +109,26 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
   }
 
   useEffect(() => {
-    if (showModal || showConfirm) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = ""
-    }
+    if (showModal || showConfirm) document.body.style.overflow = "hidden"
+    else document.body.style.overflow = ""
   }, [showModal, showConfirm])
 
   async function loadCaixa() {
     setLoadingCaixa(true)
-    const { data, error } = await supabase.from("caixas").select("*").eq("id", caixaId).single()
+    const { data, error } = await supabase
+      .from("caixas")
+      .select("*")
+      .eq("id", caixaId)
+      .single()
+
     if (error) {
       console.error(error)
       showToast("Erro ao carregar caixa", "error")
+    } else if (data) {
+      setCaixa(data as Caixa)
+      setNumeroCaixa(data.numero_caixa)
     }
-    setCaixa((data || null) as Caixa | null)
+
     setLoadingCaixa(false)
   }
 
@@ -160,12 +169,14 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
       ...form,
       ano: Number(form.ano),
       quantidade_volumes: Number(form.quantidade_volumes) || null,
-      numero_caixas: Number(form.numero_caixas) || null,
       caixa_id: caixaId,
     }
 
     if (editing) {
-      const { error } = await supabase.from("processos").update(payload).eq("id", editing.id)
+      const { error } = await supabase
+        .from("processos")
+        .update(payload)
+        .eq("id", editing.id)
       if (error) {
         console.error(error)
         showToast("Erro ao atualizar processo", "error")
@@ -194,7 +205,6 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
       protocolo: "",
       ano: new Date().getFullYear(),
       quantidade_volumes: 1,
-      numero_caixas: 1,
       observacao: "",
     })
   }
@@ -224,12 +234,12 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
       protocolo: p.protocolo ?? "",
       ano: p.ano,
       quantidade_volumes: p.quantidade_volumes ?? 1,
-      numero_caixas: p.numero_caixas ?? 1,
       observacao: p.observacao ?? "",
     })
     setShowModal(true)
   }
 
+  // ✅ Bloqueia tipo conforme caixa
   const openCreateModal = () => {
     setEditing(null)
     setForm({
@@ -237,14 +247,13 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
         caixa?.tipo === "processo_judicial"
           ? "judicial"
           : caixa?.tipo === "processo_administrativo"
-            ? "administrativo"
-            : "",
+          ? "administrativo"
+          : "",
       classe_processual: "",
       numero_processo: "",
       protocolo: "",
       ano: new Date().getFullYear(),
       quantidade_volumes: 1,
-      numero_caixas: 1,
       observacao: "",
     })
     setShowModal(true)
@@ -258,7 +267,7 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <GlobalLoader visible={loadingAction} />
 
-        {/* Cabeçalho da caixa */}
+        {/* Cabeçalho da Caixa */}
         {loadingCaixa ? (
           <p className="text-gray-500">Carregando caixa...</p>
         ) : !caixa ? (
@@ -276,23 +285,10 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
             </div>
             <div className="mt-4 flex justify-between items-center text-sm text-gray-700">
               <div className="flex flex-wrap gap-x-8 gap-y-2">
-                <span>
-                  <b>Número:</b> {caixa.numero_caixa}
-                </span>
-                <span>
-                  <b>Tipo:</b> {formatTipoCaixa(caixa.tipo)}
-                </span>
-                <span>
-                  <b>Cidade:</b> {caixa.localizacao || "—"}
-                </span>
-                <span>
-                  <b>Destinação:</b>{" "}
-                  {caixa.destinacao === "preservar"
-                    ? "Preservar"
-                    : caixa.destinacao === "eliminar"
-                      ? "Eliminar"
-                      : "—"}
-                </span>
+                <span><b>Número:</b> {caixa.numero_caixa}</span>
+                <span><b>Tipo:</b> {formatTipoCaixa(caixa.tipo)}</span>
+                <span><b>Cidade:</b> {caixa.localizacao || "—"}</span>
+                <span><b>Destinação:</b> {caixa.destinacao === "preservar" ? "Preservar" : "Eliminar"}</span>
               </div>
               <Link href="/caixas" className="text-sm text-indigo-600 hover:underline">
                 ← Voltar
@@ -301,7 +297,7 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
           </div>
         )}
 
-        {/* Conteúdo principal */}
+        {/* Conteúdo Principal */}
         {caixa?.tipo === "documento_administrativo" ? (
           <DocumentosAdm />
         ) : (
@@ -311,25 +307,26 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
               <div className="flex gap-2">
                 <button
                   onClick={openCreateModal}
-                  className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 flex items-center justify-center cursor-pointer">
+                  className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 flex items-center justify-center cursor-pointer"
+                >
                   <span className="mr-3 text-sm font-semibold">Novo Processo</span>
                   <ScaleIcon className="h-6 w-6 text-gray-700" />
                 </button>
 
+                {/* Botão Etiqueta Restaurado */}
                 {caixa && (caixa.tipo === "processo_judicial" || caixa.tipo === "processo_administrativo") && (
                   <>
                     <button
-                      onClick={async () => {
-                        // abre o modal com iframe (sem sair da PWA)
+                      onClick={() => {
                         setEtiquetaUrl(`/etiquetas/${caixa.id}?numero_caixa=${caixa.numero_caixa}&tipo=${caixa.tipo}`)
                         setShowEtiqueta(true)
                       }}
                       disabled={loadingEtiqueta}
-                      className={`p-3 rounded-lg border flex items-center justify-center cursor-pointer transition
-        ${loadingEtiqueta
+                      className={`p-3 rounded-lg border flex items-center justify-center cursor-pointer transition ${
+                        loadingEtiqueta
                           ? "bg-indigo-200 border-indigo-300 opacity-70 cursor-not-allowed"
                           : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
-                        }`}
+                      }`}
                     >
                       {loadingEtiqueta ? (
                         <>
@@ -339,19 +336,12 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
                             fill="none"
                             viewBox="0 0 24 24"
                           >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path
                               className="opacity-75"
                               fill="currentColor"
                               d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
-                            ></path>
+                            />
                           </svg>
                           <span className="text-sm font-semibold">Abrindo...</span>
                         </>
@@ -363,11 +353,10 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
                       )}
                     </button>
 
-                    {/* Modal com IFRAME da etiqueta */}
+                    {/* Modal da Etiqueta */}
                     {showEtiqueta && (
                       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                         <div className="bg-white rounded-2xl shadow-lg w-[90%] max-w-5xl h-[90vh] overflow-hidden flex flex-col">
-                          {/* Header do modal */}
                           <div className="flex justify-between items-center bg-indigo-600 text-white px-4 py-2">
                             <h2 className="text-sm font-semibold">Visualização da Etiqueta</h2>
                             <button
@@ -377,23 +366,16 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
                               ✕ Fechar
                             </button>
                           </div>
-
-                          {/* Conteúdo da etiqueta */}
-                          <iframe
-                            src={etiquetaUrl}
-                            className="flex-1 w-full border-0"
-                            title="Etiqueta"
-                          ></iframe>
+                          <iframe src={etiquetaUrl} className="flex-1 w-full border-0" title="Etiqueta"></iframe>
                         </div>
                       </div>
                     )}
                   </>
                 )}
-
               </div>
             </div>
 
-            {/* Tabela com SkeletonTable mantido */}
+            {/* Tabela */}
             <div className="bg-gray-50 rounded-2xl shadow p-2">
               <table className="w-full text-sm border-separate border-spacing-y-1">
                 <thead>
@@ -404,7 +386,7 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
                     <th className="px-4 py-3 text-left">Tipo</th>
                     <th className="px-4 py-3 text-left">Classe</th>
                     <th className="px-4 py-3 text-left">Volumes</th>
-                    <th className="px-4 py-3 text-left">Nº Caixas</th>
+                    <th className="px-4 py-3 text-left">Nº Caixa</th>
                     <th className="px-4 py-3 text-right">Operações</th>
                   </tr>
                 </thead>
@@ -423,10 +405,7 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
                           <td className="px-4 py-3">{p.quantidade_volumes ?? "—"}</td>
                           <td className="px-4 py-3">{p.numero_caixas ?? "—"}</td>
                           <td className="px-4 py-3 text-right space-x-2">
-                            <button
-                              onClick={() => handleEdit(p)}
-                              className="text-yellow-600 hover:underline cursor-pointer"
-                            >
+                            <button onClick={() => handleEdit(p)} className="text-yellow-600 hover:underline cursor-pointer">
                               Editar
                             </button>
                             <button
@@ -480,185 +459,174 @@ const [etiquetaUrl, setEtiquetaUrl] = useState("")
                 )}
               </div>
             )}
-          </>
-        )}
 
-        {/* Modal de cadastro/edição */}
-        {showModal && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
-            <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-lg font-semibold text-indigo-700">
-                  {editing ? "Editar Processo" : "Cadastrar Processo"}
-                </h3>
-                <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700 cursor-pointer">
-                  ✕
-                </button>
-              </div>
+            {/* Modal cadastro/edição */}
+            {showModal && (
+              <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
+                <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-semibold text-indigo-700">
+                      {editing ? "Editar Processo" : "Cadastrar Processo"}
+                    </h3>
+                    <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700 cursor-pointer">
+                      ✕
+                    </button>
+                  </div>
 
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <div>
-                  <label className="block text-xs mb-1 text-gray-700">Tipo</label>
-                  <select
-                    value={form.tipo_processo}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        tipo_processo: e.target.value as Processo["tipo_processo"],
-                      })
-                    }
-                    className={inputClass}
-                    required
-                  >
-                    <option value="">Selecione</option>
-                    <option value="judicial">Judicial</option>
-                    <option value="administrativo">Administrativo</option>
-                  </select>
-                </div>
+                  <form onSubmit={handleSubmit} className="space-y-3">
+                    {/* Campo tipo bloqueado conforme caixa */}
+                    <div>
+  <label className="block text-xs mb-1 text-gray-700">Tipo</label>
+  <select
+    value={form.tipo_processo}
+    onChange={(e) =>
+      setForm({ ...form, tipo_processo: e.target.value as "judicial" | "administrativo" })
+    }
+    className={`w-full border rounded-md px-3 py-1.5 text-sm outline-none transition ${
+      caixa?.tipo === "processo_judicial" || caixa?.tipo === "processo_administrativo"
+        ? "bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed opacity-75"
+        : "bg-gray-50 border-gray-200 focus:ring-2 focus:ring-indigo-500"
+    }`}
+    disabled={caixa?.tipo === "processo_judicial" || caixa?.tipo === "processo_administrativo"}
+    required
+  >
+    <option value="">Selecione</option>
+    <option value="judicial">Judicial</option>
+    <option value="administrativo">Administrativo</option>
+  </select>
 
-                {/* Combobox substituindo datalist — agora com criação livre */}
-                <div>
-                  <label className="block text-xs mb-1 text-gray-700">Classe Processual</label>
-                  <Combobox
-                    value={form.classe_processual}
-                    onChange={(val) => setForm({ ...form, classe_processual: val ?? "" })}
-                  >
-                    <div className="relative">
-                      <Combobox.Input
-                        className={inputClass}
-                        placeholder="Digite ou selecione"
-                        displayValue={(v: string) => v}
-                        onChange={(e) => {
-                          setQueryClasse(e.target.value)
-                          setForm({ ...form, classe_processual: e.target.value }) // ← mantém texto livre
-                        }}
-                        required
-                      />
-                      {filteredClasses.length > 0 && (
-                        <Combobox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg z-50">
-                          {filteredClasses.map((classe) => (
-                            <Combobox.Option
-                              key={classe}
-                              value={classe}
-                              className={({ active }) =>
-                                `cursor-pointer select-none px-3 py-2 text-sm ${active ? "bg-indigo-100 text-indigo-700" : "text-gray-700"
-                                }`
-                              }
-                            >
-                              {classe}
-                            </Combobox.Option>
-                          ))}
-                        </Combobox.Options>
-                      )}
+  {caixa?.tipo && (
+    <p className="text-xs text-gray-500 mt-1">
+      Tipo fixado conforme a caixa ({formatTipoCaixa(caixa.tipo)})
+    </p>
+  )}
+</div>
+
+                    {/* Classe Processual */}
+                    <div>
+                      <label className="block text-xs mb-1 text-gray-700">Classe Processual</label>
+                      <Combobox
+                        value={form.classe_processual}
+                        onChange={(val) => setForm({ ...form, classe_processual: val ?? "" })}
+                      >
+                        <div className="relative">
+                          <Combobox.Input
+                            className={inputClass}
+                            placeholder="Digite ou selecione"
+                            displayValue={(v: string) => v}
+                            onChange={(e) => {
+                              setQueryClasse(e.target.value)
+                              setForm({ ...form, classe_processual: e.target.value })
+                            }}
+                            required
+                          />
+                          {filteredClasses.length > 0 && (
+                            <Combobox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg z-50">
+                              {filteredClasses.map((classe) => (
+                                <Combobox.Option
+                                  key={classe}
+                                  value={classe}
+                                  className={({ active }) =>
+                                    `cursor-pointer select-none px-3 py-2 text-sm ${
+                                      active ? "bg-indigo-100 text-indigo-700" : "text-gray-700"
+                                    }`
+                                  }
+                                >
+                                  {classe}
+                                </Combobox.Option>
+                              ))}
+                            </Combobox.Options>
+                          )}
+                        </div>
+                      </Combobox>
                     </div>
-                  </Combobox>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs mb-1 text-gray-700">Número do Processo</label>
+                        <input
+                          type="text"
+                          value={form.numero_processo}
+                          onChange={(e) => setForm({ ...form, numero_processo: e.target.value })}
+                          className={inputClass}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1 text-gray-700">Protocolo</label>
+                        <input
+                          type="text"
+                          value={form.protocolo}
+                          onChange={(e) => setForm({ ...form, protocolo: e.target.value })}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs mb-1 text-gray-700">Ano</label>
+                        <input
+                          type="number"
+                          value={form.ano}
+                          onChange={(e) =>
+                            setForm({ ...form, ano: safeInt(e.target.value, new Date().getFullYear()) })
+                          }
+                          className={inputClass}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1 text-gray-700">Qtd. de Volumes</label>
+                        <input
+                          type="number"
+                          value={form.quantidade_volumes}
+                          onChange={(e) => setForm({ ...form, quantidade_volumes: safeInt(e.target.value, 1) })}
+                          className={inputClass}
+                          min={1}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1 text-gray-700">Número da Caixa</label>
+                        <input
+                          type="text"
+                          value={numeroCaixa || ""}
+                          readOnly
+                          className="w-full border border-gray-200 rounded-md p-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs mb-1 text-gray-700">Observação</label>
+                      <textarea
+                        value={form.observacao}
+                        onChange={(e) => setForm({ ...form, observacao: e.target.value })}
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        className="p-3 rounded-lg bg-indigo-100 border border-indigo-300 hover:bg-indigo-200 flex items-center justify-center cursor-pointer"
+                      >
+                        <span className="mr-2 text-sm">
+                          {editing ? "Salvar Alterações" : "Salvar Processo"}
+                        </span>
+                        <CheckIcon className="h-4 w-4 text-gray-700" />
+                      </button>
+                    </div>
+                  </form>
                 </div>
+              </div>
+            )}
 
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs mb-1 text-gray-700">Número do Processo</label>
-                    <input
-                      type="text"
-                      value={form.numero_processo}
-                      onChange={(e) => setForm({ ...form, numero_processo: e.target.value })}
-                      className={inputClass}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs mb-1 text-gray-700">Protocolo</label>
-                    <input
-                      type="text"
-                      value={form.protocolo}
-                      onChange={(e) => setForm({ ...form, protocolo: e.target.value })}
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs mb-1 text-gray-700">Ano</label>
-                    <input
-                      type="number"
-                      value={form.ano}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          ano: safeInt(e.target.value, new Date().getFullYear()),
-                        })
-                      }
-                      className={inputClass}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs mb-1 text-gray-700">Qtd. de Volumes</label>
-                    <input
-                      type="number"
-                      value={form.quantidade_volumes}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          quantidade_volumes: safeInt(e.target.value, 1),
-                        })
-                      }
-                      className={inputClass}
-                      min={1}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs mb-1 text-gray-700">Nº de Caixas</label>
-                    <input
-                      type="number"
-                      value={form.numero_caixas}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          numero_caixas: safeInt(e.target.value, 1),
-                        })
-                      }
-                      className={inputClass}
-                      min={1}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs mb-1 text-gray-700">Observação</label>
-                  <textarea
-                    value={form.observacao}
-                    onChange={(e) => setForm({ ...form, observacao: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="p-3 rounded-lg bg-indigo-100 border border-indigo-300 hover:bg-indigo-200 flex items-center justify-center cursor-pointer"
-                  >
-                    <span className="mr-2 text-sm">
-                      {editing ? "Salvar Alterações" : "Salvar Processo"}
-                    </span>
-                    <CheckIcon className="h-4 w-4 text-gray-700" />
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Modal Confirmação */}
-        {/* Modal Confirmação + Senha */}
-        {showConfirm && (
-          <ConfirmPasswordModal
-            open={showConfirm}
-            onClose={() => setShowConfirm(false)}
-            onConfirm={handleDelete} // ⬅ executa exclusão real após senha correta
-          />
+            {/* Confirmação de exclusão */}
+            {showConfirm && (
+              <ConfirmPasswordModal open={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={handleDelete} />
+            )}
+          </>
         )}
       </main>
     </AuthGuard>
