@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { supabase } from "@/lib/supabaseClient"
 import AuthGuard from "@/components/AuthGuard"
 import Header from "@/components/Header"
@@ -60,7 +59,7 @@ export default function CaixasPage() {
     numero_caixa: "",
     tipo: "" as Caixa["tipo"] | "",
     descricao: "",
-    localizacao: "Guarabira", // ✅ valor padrão
+    localizacao: "Guarabira",
     destinacao: "preservar" as "preservar" | "eliminar",
   })
 
@@ -144,14 +143,14 @@ export default function CaixasPage() {
     return () => document.removeEventListener("click", handleClickOutside)
   }, [])
 
-  // ✅ Prefill de Guarabira no “Nova Caixa”
+  // Prefill de Guarabira no “Nova Caixa”
   const openCreateModal = () => {
     setEditing(null)
     setForm({
       numero_caixa: "",
       tipo: "",
       descricao: "",
-      localizacao: "Guarabira", // ✅ sempre padrão
+      localizacao: "Guarabira",
       destinacao: "preservar",
     })
     setShowModal(true)
@@ -163,7 +162,7 @@ export default function CaixasPage() {
       numero_caixa: c.numero_caixa || "",
       tipo: c.tipo,
       descricao: c.descricao || "",
-      localizacao: c.localizacao || "Guarabira", // fallback
+      localizacao: c.localizacao || "Guarabira",
       destinacao: c.destinacao || "preservar",
     })
     setShowModal(true)
@@ -185,37 +184,86 @@ export default function CaixasPage() {
       return
     }
 
-    // ✅ Garante que sempre haja cidade
     const cidade = (form.localizacao?.trim() || "Guarabira")
 
-    const payload = {
-      numero_caixa: form.numero_caixa?.trim() || null,
-      tipo: form.tipo as Caixa["tipo"],
-      descricao: form.descricao?.trim() || null,
-      localizacao: cidade,
-      destinacao: form.destinacao,
-      user_id: user.id,
-    }
+    try {
+      if (editing) {
+        // vínculos já carregados
+        const temVinculo =
+          (countProc[editing.id] ?? 0) > 0 || (countDoc[editing.id] ?? 0) > 0
 
-    if (editing) {
-      const { error } = await supabase.from("caixas").update(payload).eq("id", editing.id)
-      if (error) showToast("Erro ao atualizar caixa", "error")
-      else {
-        showToast("Caixa atualizada com sucesso!", "success")
-        setShowModal(false)
-        await loadCaixas()
-      }
-    } else {
-      const { error } = await supabase.from("caixas").insert([payload])
-      if (error) showToast("Erro ao salvar caixa", "error")
-      else {
-        showToast("Caixa cadastrada com sucesso!", "success")
-        setShowModal(false)
-        await loadCaixas()
-      }
-    }
+        // 🛠️ MONTA O UPDATE APENAS COM CAMPOS QUE DEVEM SER ALTERADOS
+        const payloadUpdate: Record<string, any> = {
+          descricao: form.descricao?.trim() || null,
+          localizacao: cidade,
+          destinacao: form.destinacao,
+        }
 
-    setLoadingAction(false)
+        // 🛠️ SÓ ENVIA numero_caixa SE REALMENTE MUDOU (evita disparar o trigger)
+        const novoNumero = form.numero_caixa?.trim() || null
+        const numeroAtual = editing.numero_caixa || null
+        if (novoNumero !== numeroAtual) {
+          payloadUpdate.numero_caixa = novoNumero
+        }
+
+        // 🛠️ SÓ ENVIA tipo SE NÃO HOUVER VÍNCULOS
+        if (!temVinculo) {
+          payloadUpdate.tipo = form.tipo as Caixa["tipo"]
+        } else if (form.tipo !== editing.tipo) {
+          showToast("O tipo da caixa permaneceu inalterado pois há processos/documentos vinculados.", "info")
+        }
+
+        // garantia: nunca enviar user_id em UPDATE
+        if ("user_id" in payloadUpdate) delete (payloadUpdate as any).user_id
+
+
+        const { data, error } = await supabase
+          .from("caixas")
+          .update(payloadUpdate)
+          .eq("id", editing.id)
+          .eq("user_id", user.id) // opcional, mas ok com sua RLS
+          .select("id")
+
+
+        if (error || !data || data.length === 0) {
+          console.log("🔍 UPDATE resp:", { data, error, payloadUpdate })
+          showToast("Erro ao salvar caixa", "error")
+        } else {
+          showToast("Caixa atualizada com sucesso!", "success")
+          setShowModal(false)
+          await loadCaixas()
+        }
+      } else {
+        // INSERT normal
+        const payloadInsert = {
+          numero_caixa: form.numero_caixa?.trim() || null,
+          tipo: form.tipo as Caixa["tipo"],
+          descricao: form.descricao?.trim() || null,
+          localizacao: cidade,
+          destinacao: form.destinacao,
+          user_id: user.id,
+        }
+
+        const { data, error } = await supabase
+          .from("caixas")
+          .insert([payloadInsert])
+          .select("id")
+
+        if (error || !data || data.length === 0) {
+          console.log("🔍 INSERT resp:", { data, error, payloadInsert })
+          showToast("Erro ao salvar caixa", "error")
+        } else {
+          showToast("Caixa cadastrada com sucesso!", "success")
+          setShowModal(false)
+          await loadCaixas()
+        }
+      }
+    } catch (err) {
+      console.log("🔴 Exceção inesperada:", err)
+      showToast("Erro inesperado ao salvar caixa", "error")
+    } finally {
+      setLoadingAction(false)
+    }
   }
 
   const handleDelete = async () => {
@@ -311,11 +359,10 @@ export default function CaixasPage() {
                               }
                             }}
                             disabled={loadingCaixaId === c.id}
-                            className={`inline-flex items-center justify-center px-4 py-2 text-sm rounded-md mr-2 cursor-pointer ${
-                              loadingCaixaId === c.id
+                            className={`inline-flex items-center justify-center px-4 py-2 text-sm rounded-md mr-2 cursor-pointer ${loadingCaixaId === c.id
                                 ? "bg-indigo-400 cursor-not-allowed"
                                 : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                            }`}
+                              }`}
                           >
                             {loadingCaixaId === c.id ? (
                               <>
