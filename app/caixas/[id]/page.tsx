@@ -52,6 +52,9 @@ const classesProcessuais = [
   "Registro de Candidaturas",
   "Representação",
   "Suspensão dos Direitos Políticos",
+  "Inquérito Policial",
+  "Cancelamento por Óbito",
+  "Crime Eleitoral"
 ]
 
 export default function CaixaDetailPage() {
