@@ -138,21 +138,85 @@ export default function CaixasPage() {
   }
 
   const handleSearch = async () => {
-    setLoadingSearch(true)
-    setPage(1)
-    await loadCaixas()
-    setLoadingSearch(false)
-  }
+    setLoadingSearch(true);
+    setPage(1);
+
+    if (filterNumero.trim() === "") {
+      // só limpa e deixa o useEffect cuidar do recarregamento
+      setFilterTipo("");
+      setLoadingSearch(false);
+      return;
+    }
+
+    let query = supabase
+      .from("caixas")
+      .select("*", { count: "exact" })
+      .ilike("numero_caixa", `%${filterNumero.trim()}%`)
+      .order("data_criacao", { ascending: false })
+      .range(0, pageSize - 1);
+
+    if (filterTipo !== "") {
+      query = query.eq("tipo", filterTipo);
+    }
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      showToast("Erro ao buscar caixas", "error");
+    } else {
+      const lista = data || [];
+      setCaixas(lista);
+      setTotal(count || 0);
+
+      // 🔄 Recalcula contadores como no loadCaixas()
+      const ids = lista.map((c) => c.id).filter(Boolean);
+      if (ids.length) {
+        const [procRes, docRes] = await Promise.all([
+          supabase.from("processos").select("caixa_id").in("caixa_id", ids),
+          supabase.from("documentos_adm").select("caixa_id").in("caixa_id", ids),
+        ]);
+
+        const procMap: Record<string, number> = {};
+        const docMap: Record<string, number> = {};
+
+        if (procRes.data) {
+          for (const r of procRes.data as { caixa_id: string }[]) {
+            procMap[r.caixa_id] = (procMap[r.caixa_id] || 0) + 1;
+          }
+        }
+        if (docRes.data) {
+          for (const r of docRes.data as { caixa_id: string }[]) {
+            docMap[r.caixa_id] = (docMap[r.caixa_id] || 0) + 1;
+          }
+        }
+
+        setCountProc(procMap);
+        setCountDoc(docMap);
+      } else {
+        setCountProc({});
+        setCountDoc({});
+      }
+    }
+
+    setLoadingSearch(false);
+  };
 
 
   // 🔁 Quando o campo busca for apagado, reseta tipo e recarrega tudo
   useEffect(() => {
     if (filterNumero.trim() === "") {
-      setFilterTipo("")
-      loadCaixas()
+      // ⚙️ reseta o tipo para "" (Todos)
+      setFilterTipo("");
+
+      // ✅ usa async callback para garantir que o estado foi atualizado antes de recarregar
+      const reload = async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0)); // garante flush do estado
+        await loadCaixas();
+      };
+      reload();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterNumero])
+  }, [filterNumero]);
 
   useEffect(() => {
     loadCaixas()
@@ -319,12 +383,13 @@ export default function CaixasPage() {
         {/* 🔍 Card de Busca */}
         <div className="bg-gray-50 rounded-2xl shadow p-4 flex flex-wrap items-center gap-3">
           <input
-          
-            type="text"
+            type="number"
             placeholder="Buscar número da caixa..."
             value={filterNumero}
             onChange={(e) => setFilterNumero(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            autoComplete="off" // 👈 impede autofill
+            inputMode="numeric" // 👈 reforça o modo numérico
             className="flex-1 min-w-[200px] bg-white border border-gray-300 rounded-md px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
           />
           <select
@@ -345,8 +410,8 @@ export default function CaixasPage() {
             onClick={handleSearch}
             disabled={loadingSearch}
             className={`flex items-center gap-2 px-5 py-2 rounded-md text-sm font-medium transition cursor-pointer ${loadingSearch
-                ? "bg-indigo-400 cursor-not-allowed text-white"
-                : "bg-indigo-600 hover:bg-indigo-700 text-white"
+              ? "bg-indigo-400 cursor-not-allowed text-white"
+              : "bg-indigo-600 hover:bg-indigo-700 text-white"
               }`}
           >
             {loadingSearch ? (

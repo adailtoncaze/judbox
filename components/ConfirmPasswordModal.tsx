@@ -41,10 +41,10 @@ export default function ConfirmPasswordModal({
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Digite a senha"
-          className={`w-full border ${
-            error ? "border-red-500" : "border-gray-300"
-          } rounded-md px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+          placeholder="Digite sua senha"
+          autoComplete="new-password" // 👈 evita preenchimento automático
+          className={`w-full border ${error ? "border-red-500" : "border-gray-300"
+            } rounded-md px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500`}
         />
         <div className="flex justify-end space-x-3">
           <button
