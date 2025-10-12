@@ -15,6 +15,8 @@ export type ReportHeaderMeta = {
   titulo: string;
   geradoEmISO: string;   // ex.: new Date().toISOString()
   usuario?: string | null;
+  /** Permite override opcional do brasão (Data URI ou URL). Se não vier, calculamos localmente. */
+  brasaoImgSrc?: string;
 };
 
 // fallback caso sharp não esteja disponível
@@ -62,10 +64,11 @@ async function getBrasaoDataURI() {
 
 /**
  * Header reutilizável para PDF/HTML (server component).
- * Use: {await ReportHeader({ titulo, geradoEmISO, usuario })}
+ * Use: {await ReportHeader({ titulo, geradoEmISO, usuario, brasaoImgSrc? })}
  */
 export async function ReportHeader(meta: ReportHeaderMeta) {
-  const brasaoImgSrc = await getBrasaoDataURI();
+  // Se vier por meta, usa; senão, calcula localmente como antes (comportamento preservado)
+  const brasaoImgSrc = meta.brasaoImgSrc ?? (await getBrasaoDataURI());
 
   return (
     <header className="mb-6">
