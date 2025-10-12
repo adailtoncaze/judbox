@@ -166,7 +166,7 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
       <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
 
       <div
-        className="relative z-[1001] mx-4 flex w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+        className="relative z-[1001] mx-4 flex w-full max-w-6xl flex-col overflow-hidden rounded bg-white shadow-2xl ring-1 ring-black/10"
         role="document"
       >
         {/* Header — INDIGO */}
