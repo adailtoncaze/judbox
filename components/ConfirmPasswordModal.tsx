@@ -33,7 +33,7 @@ export default function ConfirmPasswordModal({
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-      <div className="bg-white p-6 rounded-xl shadow-md w-80">
+      <div className="bg-white p-6 rounded shadow-md w-80">
         <h2 className="text-sm font-semibold mb-3 text-gray-700">
           Confirme a exclusão
         </h2>

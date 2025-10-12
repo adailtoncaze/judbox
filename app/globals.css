@@ -10,16 +10,26 @@
 .animate-slide-in { animation: slide-in 0.3s ease-out; }
 
 /* ===== Fundo sutil na tela ===== */
-html, body { height: 100%; } /* garante cobertura total do gradiente */
+html, body { height: 100%; }
 body {
   @apply min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900 antialiased;
 }
 
-/* ===== Regras de impressão (opcional) ===== */
+/* evita faixa branca e mantém fundo branco ao abrir o modal */
+.modal-open {
+  overflow: hidden;
+  background: #fff !important;
+}
+
+/* mantém a largura estável quando a barra de rolagem some */
+.modal-open-root {
+  scrollbar-gutter: stable;
+}
+
+/* ===== Regras de impressão ===== */
 @media print {
   @page { size: A4 landscape; margin: 5mm; }
   body {
-    /* Evita gastar tinta com gradiente na impressão */
     background: #ffffff !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;

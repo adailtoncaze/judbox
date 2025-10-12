@@ -381,7 +381,7 @@ export default function CaixasPage() {
         </div>
 
         {/* 🔍 Card de Busca */}
-        <div className="bg-gray-50 rounded-2xl shadow p-4 flex flex-wrap items-center gap-3">
+        <div className="bg-gray-50 rounded shadow p-4 flex flex-wrap items-center gap-3">
           <input
             type="number"
             placeholder="Buscar número da caixa..."
@@ -449,7 +449,7 @@ export default function CaixasPage() {
         </div>
 
         {/* Tabela */}
-        <div className="bg-gray-50 rounded-2xl shadow p-2">
+        <div className="bg-gray-50 rounded shadow p-2">
           <table className="w-full text-sm border-separate border-spacing-y-1">
             <thead>
               <tr className="bg-gray-100 text-gray-700 font-medium">
@@ -642,7 +642,7 @@ export default function CaixasPage() {
         {/* Modal Cadastro/Edição */}
         {showModal && (
           <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
-            <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-lg">
+            <div className="bg-white rounded shadow-lg p-6 w-full max-w-lg">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-lg font-semibold text-indigo-700">
                   {editing ? "Editar Caixa" : "Cadastrar Caixa"}

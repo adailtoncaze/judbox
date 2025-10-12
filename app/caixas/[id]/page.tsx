@@ -39,8 +39,8 @@ const formatTipoCaixa = (v: Caixa["tipo"]) =>
   v === "processo_judicial"
     ? "Processo Judicial"
     : v === "processo_administrativo"
-    ? "Processo Administrativo"
-    : "Documento Administrativo"
+      ? "Processo Administrativo"
+      : "Documento Administrativo"
 
 const classesProcessuais = [
   "Ação de Impugnação de Mandato Eletivo",
@@ -100,8 +100,8 @@ export default function CaixaDetailPage() {
     queryClasse === ""
       ? classesProcessuais
       : classesProcessuais.filter((classe) =>
-          classe.toLowerCase().includes(queryClasse.toLowerCase())
-        )
+        classe.toLowerCase().includes(queryClasse.toLowerCase())
+      )
 
   const inputClass =
     "w-full border border-gray-200 rounded-md px-3 py-1.5 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
@@ -250,8 +250,8 @@ export default function CaixaDetailPage() {
         caixa?.tipo === "processo_judicial"
           ? "judicial"
           : caixa?.tipo === "processo_administrativo"
-          ? "administrativo"
-          : "",
+            ? "administrativo"
+            : "",
       classe_processual: "",
       numero_processo: "",
       protocolo: "",
@@ -281,7 +281,7 @@ export default function CaixaDetailPage() {
             </Link>
           </div>
         ) : (
-          <div className="bg-white p-6 rounded-2xl shadow">
+          <div className="bg-white p-6 rounded shadow">
             <div className="flex items-center gap-3">
               <span className="text-2xl">📦</span>
               <h1 className="text-2xl font-bold text-indigo-700">Caixa {caixa.numero_caixa}</h1>
@@ -325,11 +325,10 @@ export default function CaixaDetailPage() {
                         setShowEtiqueta(true)
                       }}
                       disabled={loadingEtiqueta}
-                      className={`p-3 rounded-lg border flex items-center justify-center cursor-pointer transition ${
-                        loadingEtiqueta
+                      className={`p-3 rounded-lg border flex items-center justify-center cursor-pointer transition ${loadingEtiqueta
                           ? "bg-indigo-200 border-indigo-300 opacity-70 cursor-not-allowed"
                           : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
-                      }`}
+                        }`}
                     >
                       {loadingEtiqueta ? (
                         <>
@@ -359,7 +358,7 @@ export default function CaixaDetailPage() {
                     {/* Modal da Etiqueta */}
                     {showEtiqueta && (
                       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <div className="bg-white rounded-2xl shadow-lg w-[90%] max-w-5xl h-[90vh] overflow-hidden flex flex-col">
+                        <div className="bg-white rounded shadow-lg w-[90%] max-w-5xl h-[90vh] overflow-hidden flex flex-col">
                           <div className="flex justify-between items-center bg-indigo-600 text-white px-4 py-2">
                             <h2 className="text-sm font-semibold">Visualização da Etiqueta</h2>
                             <button
@@ -379,7 +378,7 @@ export default function CaixaDetailPage() {
             </div>
 
             {/* Tabela */}
-            <div className="bg-gray-50 rounded-2xl shadow p-2">
+            <div className="bg-gray-50 rounded shadow p-2">
               <table className="w-full text-sm border-separate border-spacing-y-1">
                 <thead>
                   <tr className="bg-gray-100 text-gray-700 font-medium">
@@ -466,7 +465,7 @@ export default function CaixaDetailPage() {
             {/* Modal cadastro/edição */}
             {showModal && (
               <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
-                <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl">
+                <div className="bg-white rounded shadow-lg p-6 w-full max-w-2xl">
                   <div className="flex justify-between items-center mb-3">
                     <h3 className="text-lg font-semibold text-indigo-700">
                       {editing ? "Editar Processo" : "Cadastrar Processo"}
@@ -479,31 +478,30 @@ export default function CaixaDetailPage() {
                   <form onSubmit={handleSubmit} className="space-y-3">
                     {/* Campo tipo bloqueado conforme caixa */}
                     <div>
-  <label className="block text-xs mb-1 text-gray-700">Tipo</label>
-  <select
-    value={form.tipo_processo}
-    onChange={(e) =>
-      setForm({ ...form, tipo_processo: e.target.value as "judicial" | "administrativo" })
-    }
-    className={`w-full border rounded-md px-3 py-1.5 text-sm outline-none transition ${
-      caixa?.tipo === "processo_judicial" || caixa?.tipo === "processo_administrativo"
-        ? "bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed opacity-75"
-        : "bg-gray-50 border-gray-200 focus:ring-2 focus:ring-indigo-500"
-    }`}
-    disabled={caixa?.tipo === "processo_judicial" || caixa?.tipo === "processo_administrativo"}
-    required
-  >
-    <option value="">Selecione</option>
-    <option value="judicial">Judicial</option>
-    <option value="administrativo">Administrativo</option>
-  </select>
+                      <label className="block text-xs mb-1 text-gray-700">Tipo</label>
+                      <select
+                        value={form.tipo_processo}
+                        onChange={(e) =>
+                          setForm({ ...form, tipo_processo: e.target.value as "judicial" | "administrativo" })
+                        }
+                        className={`w-full border rounded-md px-3 py-1.5 text-sm outline-none transition ${caixa?.tipo === "processo_judicial" || caixa?.tipo === "processo_administrativo"
+                            ? "bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed opacity-75"
+                            : "bg-gray-50 border-gray-200 focus:ring-2 focus:ring-indigo-500"
+                          }`}
+                        disabled={caixa?.tipo === "processo_judicial" || caixa?.tipo === "processo_administrativo"}
+                        required
+                      >
+                        <option value="">Selecione</option>
+                        <option value="judicial">Judicial</option>
+                        <option value="administrativo">Administrativo</option>
+                      </select>
 
-  {caixa?.tipo && (
-    <p className="text-xs text-gray-500 mt-1">
-      Tipo fixado conforme a caixa ({formatTipoCaixa(caixa.tipo)})
-    </p>
-  )}
-</div>
+                      {caixa?.tipo && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Tipo fixado conforme a caixa ({formatTipoCaixa(caixa.tipo)})
+                        </p>
+                      )}
+                    </div>
 
                     {/* Classe Processual */}
                     <div>
@@ -530,8 +528,7 @@ export default function CaixaDetailPage() {
                                   key={classe}
                                   value={classe}
                                   className={({ active }) =>
-                                    `cursor-pointer select-none px-3 py-2 text-sm ${
-                                      active ? "bg-indigo-100 text-indigo-700" : "text-gray-700"
+                                    `cursor-pointer select-none px-3 py-2 text-sm ${active ? "bg-indigo-100 text-indigo-700" : "text-gray-700"
                                     }`
                                   }
                                 >
