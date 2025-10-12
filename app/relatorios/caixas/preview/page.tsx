@@ -1,51 +1,61 @@
 // app/relatorios/caixas/preview/page.tsx
-import { redirect } from "next/navigation";
-import { getCaixasData } from "@/lib/report/getCaixasData";
+import { getUserServer } from "@/lib/auth/getUserServer";
+import { getBrasaoDataURI } from "@/lib/brasao";
 import ReportListagem from "@/app/relatorios/_components/ReportListagem";
 import ReportOverview from "@/app/relatorios/_components/ReportOverview";
-import { getUserServer } from "@/lib/auth/getUserServer";
+import { getCaixasData } from "@/lib/report/getCaixasData";
 
-export const dynamic = "force-dynamic";
+type Kind = "geral" | "listagem" | "por-tipo";
 
-export default async function Page({
+const TITLE = "10ª Zona Eleitoral - Guarabira";
+
+export default async function PreviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; tipo?: string; numero?: string }>;
+  // Em alguns setups o Next entrega searchParams como Promise
+  searchParams: Promise<{ kind?: Kind; tipo?: string; numero?: string }>;
 }) {
-  const { user } = await getUserServer();
-  if (!user) redirect("/login");
-
-  // Next 15: searchParams é Promise
   const sp = await searchParams;
-  const kind = (sp?.kind ?? "listagem") as "geral" | "listagem" | "por-tipo";
+  const kind: Kind = (sp?.kind as Kind) || "listagem";
   const tipo = sp?.tipo ?? "todos";
   const numero = sp?.numero ?? "";
 
+  const { user } = await getUserServer();
+  const brasaoImgSrc = await getBrasaoDataURI(); // pré-carrega brasão para o preview também
+
   if (kind === "geral") {
+    // Relatório Geral
     return (
-      <main className="p-6">
-        <ReportOverview />
-      </main>
+      <div className="mx-auto max-w-[900px] text-gray-900 overflow-x-hidden print:overflow-visible">
+        {/* 👇 Respiro só no preview */}
+        <div className="pt-6 pb-10 md:pt-8 md:pb-14">
+          <ReportOverview brasaoImgSrc={brasaoImgSrc} />
+        </div>
+      </div>
     );
   }
 
-  const { data: dados } = await getCaixasData({
-    tipo: kind === "por-tipo" ? tipo : tipo,
-    numero,
-  });
+  // Listagem e Por Tipo reutilizam o mesmo componente
+  const { data } = await getCaixasData({ tipo, numero });
+
+  const meta = {
+    titulo: TITLE, // título fixo no header do relatório
+    subtitulo: kind === "por-tipo" ? `Tipo: ${tipo || "—"}` : "Listagem completa",
+    geradoEmISO: new Date().toISOString(),
+    usuario: user?.email ?? undefined,
+  };
 
   return (
-    <main className="p-6">
-      <ReportListagem
-        dados={dados}
-        filtros={{ tipo: kind === "por-tipo" ? tipo : tipo, numero }}
-        meta={{
-          titulo: kind === "por-tipo" ? "Relatório por Tipo" : "Relatório de Caixas",
-          subtitulo: kind === "por-tipo" ? `Tipo: ${tipo}` : "Listagem completa",
-          geradoEmISO: new Date().toISOString(),
-          usuario: user.email ?? undefined,
-        }}
-      />
-    </main>
+    <div className="mx-auto max-w-[900px] text-gray-900 overflow-x-hidden print:overflow-visible">
+      {/* 👇 Respiro só no preview */}
+      <div className="pt-6 pb-10 md:pt-8 md:pb-14">
+        <ReportListagem
+          dados={data}
+          filtros={{ tipo, numero }}
+          meta={meta}
+          brasaoImgSrc={brasaoImgSrc}
+        />
+      </div>
+    </div>
   );
 }

@@ -2,9 +2,9 @@ export default function Bars({
     data,
     title,
     viewWidth = 500,    // sistema de coordenadas horizontal
-    barHeight = 12,
+    barHeight = 15,
     gap = 8,
-    fontSize = 16,       // ↓ fonte menor, coesa com os donuts
+    fontSize = 20,       // ↓ fonte menor, coesa com os donuts
 }: {
     data: { label: string; value: number }[];
     title?: string;
@@ -20,7 +20,7 @@ export default function Bars({
     const max = Math.max(1, ...rows.map(d => d.value));
 
     // Pads e métricas
-    const leftPad = 92;            // espaço p/ rótulo à esquerda
+    const leftPad = 96;            // espaço p/ rótulo à esquerda
     const rightPad = 36;           // espaço p/ valor fora da barra
     const topPad = 12;
     const bottomPad = 14;
@@ -31,7 +31,7 @@ export default function Bars({
     return (
         <figure className="flex flex-col items-center gap-2 w-full">
             {title && (
-                <figcaption className="text-[11px] text-gray-600 text-center">
+                <figcaption className="text-[14px] text-gray-600 text-center">
                     {title}
                 </figcaption>
             )}
@@ -68,7 +68,7 @@ export default function Bars({
                                 x={leftPad - 8}
                                 y={y + barHeight * 0.78}
                                 textAnchor="end"
-                                fontSize={fontSize}
+                                fontSize={12}
                                 fontFamily="inherit"
                                 fill="#6B7280"
                             >
@@ -89,7 +89,8 @@ export default function Bars({
                             <text
                                 x={valueX}
                                 y={y + barHeight * 0.78}
-                                fontSize={fontSize}
+                                fontSize={12}
+                                fontWeight="600"
                                 fontFamily="inherit"
                                 fill="#374151"
                                 textAnchor="start"

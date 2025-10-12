@@ -39,7 +39,7 @@ function Donut({
   colors,
   title,
   size = 160,
-  thickness = 16,
+  thickness = 20,
   padAngle = 2,
 }: {
   data: { label: string; value: number }[];
@@ -79,7 +79,7 @@ function Donut({
 
   return (
     <figure className="flex flex-col items-center gap-2">
-      {title && <figcaption className="text-[11px] text-gray-600">{title}</figcaption>}
+      {title && <figcaption className="text-[15px] text-gray-600">{title}</figcaption>}
       <svg
         className="block w-[160px] max-w-full"
         style={{ height: "160px", overflow: "visible" }}
@@ -104,15 +104,15 @@ function Donut({
           />
         ))}
         <circle cx={cx} cy={cy} r={innerRadius} fill="#fff" />
-        <text x={cx} y={cy - 1} textAnchor="middle" fontSize="16" fontWeight={700} fill="#111827">
+        <text x={cx} y={cy - 1} textAnchor="middle" fontSize="20" fontWeight={700} fill="#111827">
           {total}
         </text>
-        <text x={cx} y={cy + 13} textAnchor="middle" fontSize="10" fill="#6B7280">
-          total
+        <text x={cx} y={cy + 13} textAnchor="middle" fontSize="14" fill="#6B7280">
+          Total
         </text>
       </svg>
 
-      <div className="grid grid-cols-1 gap-y-1 text-[10px] text-gray-600 w-[160px]">
+      <div className="grid grid-cols-1 gap-y-1 text-[12px] text-gray-600 w-[180px]">
         {slices.map((s, i) => (
           <div key={i} className="flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />
@@ -132,9 +132,9 @@ function HBarChart({
   data,
   title,
   viewWidth = 520,
-  barHeight = 10,
+  barHeight = 16,
   gap = 10,
-  fontSize = 10,
+  fontSize = 13,
 }: {
   data: { label: string; value: number }[];
   title?: string;
@@ -155,7 +155,7 @@ function HBarChart({
 
   return (
     <figure className="flex flex-col items-center gap-2 w-full">
-      {title && <figcaption className="text-[11px] text-gray-600 text-center">{title}</figcaption>}
+      {title && <figcaption className="text-[15px] text-gray-600 text-center">{title}</figcaption>}
       <svg
         className="block w-[520px] max-w-full mx-auto"
         style={{ height: "auto" }}

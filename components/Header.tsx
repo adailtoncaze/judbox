@@ -231,27 +231,13 @@ export default function Header() {
                     >
                       <div className="flex items-center gap-2">
                         <EyeIcon className="h-5 w-5 text-indigo-600" />
-                        <span>Pré-visualizar (modal)</span>
+                        <span>Pré-visualizar</span>
                       </div>
                       {loadingPdf === "preview" && (
                         <span className="animate-spin border-2 border-indigo-600 border-t-transparent rounded-full w-4 h-4"></span>
                       )}
                     </button>
 
-                    {/* Baixar PDF (oficial) */}
-                    <button
-                      onClick={baixarPDF}
-                      disabled={loadingPdf === "download"}
-                      className="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-gray-100 disabled:opacity-50 cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <DocumentArrowDownIcon className="h-5 w-5 text-indigo-600" />
-                        <span>Baixar PDF (oficial)</span>
-                      </div>
-                      {loadingPdf === "download" && (
-                        <span className="animate-spin border-2 border-indigo-600 border-t-transparent rounded-full w-4 h-4"></span>
-                      )}
-                    </button>
                   </div>
                 </div>
               </div>

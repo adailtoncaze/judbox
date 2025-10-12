@@ -2,10 +2,14 @@
 import { NextRequest } from "next/server";
 import chromium from "@sparticuz/chromium";
 import puppeteerCore from "puppeteer-core";
+
 import ReportListagem from "@/app/relatorios/_components/ReportListagem";
-import ReportOverview from "@/app/relatorios/_components/ReportOverview";
+import ReportOverviewStatic from "@/app/relatorios/_components/ReportOverviewStatic";
+import { getOverviewData } from "@/lib/report/getOverviewData";
+
 import { getCaixasData } from "@/lib/report/getCaixasData";
 import { getUserServer } from "@/lib/auth/getUserServer";
+import { getBrasaoDataURI } from "@/lib/brasao";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,28 +35,53 @@ export async function POST(req: NextRequest) {
   const { user } = await getUserServer();
   if (!user) return new Response("Não autenticado", { status: 401 });
 
-  // Render HTML conforme o tipo
+  const brasaoImgSrc = await getBrasaoDataURI();
+
   const { renderToStaticMarkup } = await import("react-dom/server");
   let bodyHTML = "";
 
   if (kind === "geral") {
-    bodyHTML = renderToStaticMarkup(await ReportOverview());
+    const m = await getOverviewData();
+    bodyHTML = renderToStaticMarkup(
+      <ReportOverviewStatic
+        header={{
+          titulo: "10ª Zona Eleitoral - Guarabira",
+          geradoEmISO: new Date().toISOString(),
+          usuario: m.usuario,
+          brasaoImgSrc,
+        }}
+        totalCaixas={m.totalCaixas}
+        destPreservar={m.destPreservar}
+        destEliminar={m.destEliminar}
+        pTot={m.pTot}
+        pJud={m.pJud}
+        pAdm={m.pAdm}
+        docsAdm={m.docsAdm}
+        cxJud={m.cxJud}
+        cxAdm={m.cxAdm}
+        cxDoc={m.cxDoc}
+      />
+    );
   } else {
     const { data } = await getCaixasData({
-      tipo: kind === "por-tipo" ? filters?.tipo ?? null : filters?.tipo ?? null,
+      tipo: filters?.tipo ?? null,
       numero: filters?.numero ?? null,
     });
 
     bodyHTML = renderToStaticMarkup(
       <ReportListagem
         dados={data}
-        filtros={{ tipo: kind === "por-tipo" ? (filters?.tipo ?? "todos") : (filters?.tipo ?? "todos"), numero: filters?.numero ?? "" }}
+        filtros={{
+          tipo: filters?.tipo ?? "todos",
+          numero: filters?.numero ?? "",
+        }}
         meta={{
-          titulo: kind === "por-tipo" ? "Relatório por Tipo" : "Relatório de Caixas",
+          titulo: "10ª Zona Eleitoral - Guarabira",
           subtitulo: kind === "por-tipo" ? `Tipo: ${filters?.tipo ?? "—"}` : "Listagem completa",
           geradoEmISO: new Date().toISOString(),
           usuario: user.email ?? undefined,
         }}
+        brasaoImgSrc={brasaoImgSrc}
       />
     );
   }
@@ -63,11 +92,6 @@ export async function POST(req: NextRequest) {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @page { size: A4; margin: 12mm; }
-    section, header, footer, table, tr, td, th { break-inside: avoid; page-break-inside: avoid; }
-    html, body { background: white; }
-  </style>
 </head>
 <body>${bodyHTML}</body>
 </html>`;
@@ -76,7 +100,7 @@ export async function POST(req: NextRequest) {
   const puppeteer = isDev ? (await import("puppeteer")).default : puppeteerCore;
 
   const executablePath = isDev
-    ? await puppeteer.executablePath()
+    ? await (puppeteer as any).executablePath()
     : (await chromium.executablePath()) || process.env.PUPPETEER_EXECUTABLE_PATH;
 
   const browser = await puppeteer.launch({
@@ -94,16 +118,31 @@ export async function POST(req: NextRequest) {
       printBackground: true,
       displayHeaderFooter: true,
       headerTemplate: `
-        <div style="font-size:10px;width:100%;padding:0 12mm;display:flex;justify-content:space-between;">
+        <div style="
+          font-size:10px;
+          width:100%;
+          padding:0 10mm;
+          padding-bottom:1mm;
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+        ">
           <span>JudBox • ${kind === "geral" ? "Relatório Geral" : kind === "por-tipo" ? "Relatório por Tipo" : "Relatório de Caixas"}</span>
           <span class="date"></span>
         </div>`,
       footerTemplate: `
-        <div style="font-size:10px;width:100%;padding:0 12mm;display:flex;justify-content:space-between;">
+        <div style="
+          font-size:10px;
+          width:100%;
+          padding:0 10mm;
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+        ">
           <span>Usuário: ${user.email ?? "—"}</span>
           <span>Página <span class="pageNumber"></span> / <span class="totalPages"></span></span>
         </div>`,
-      margin: { top: "18mm", bottom: "14mm", left: "12mm", right: "12mm" },
+      margin: { top: "20mm", bottom: "20mm", left: "10mm", right: "10mm" },
     });
 
     const uint8 = pdfRaw instanceof Uint8Array ? pdfRaw : new Uint8Array(pdfRaw as any);

@@ -4,7 +4,7 @@ export default function Donut({
   data,
   title,
   size = 140,
-  thickness = 14,
+  thickness = 20,
   colors,
   padAngle = 2,        // espaçamento angular entre fatias (graus)
   rounded = true,      // cantos arredondados
@@ -61,7 +61,7 @@ export default function Donut({
   return (
     <figure className="flex flex-col items-center gap-2">
       {title && (
-        <figcaption className="text-[11px] text-gray-600">{title}</figcaption>
+        <figcaption className="text-[14px] text-gray-600">{title}</figcaption>
       )}
       <svg
         width={size}
@@ -91,7 +91,7 @@ export default function Donut({
             r={r}
             fill="none"
             stroke={s.color}
-            strokeWidth={thickness}
+            strokeWidth={20}
             strokeLinecap={rounded ? "round" : "butt"}
             strokeDasharray={s.dasharray}
             strokeDashoffset={s.dashoffset}
@@ -106,19 +106,19 @@ export default function Donut({
           x={cx}
           y={cy - 1}
           textAnchor="middle"
-          fontSize="14"
+          fontSize="18"
           fontWeight="600"
           fill="#111827"
         >
           {total}
         </text>
-        <text x={cx} y={cy + 12} textAnchor="middle" fontSize="9" fill="#6B7280">
-          total
+        <text x={cx} y={cy + 12} textAnchor="middle" fontSize="12" fill="#6B7280">
+          Total
         </text>
       </svg>
 
       {/* legenda */}
-      <div className="grid grid-cols-1 gap-y-1 text-[10px] text-gray-600">
+      <div className="grid grid-cols-1 gap-y-1 text-[12px] text-gray-600">
         {slices.map((s, i) => (
           <div key={i} className="flex items-center gap-1">
             <span

@@ -13,15 +13,14 @@ type Caixa = {
 type Filtros = { tipo?: string | null; numero?: string | null };
 type Meta = { titulo: string; subtitulo?: string; geradoEmISO: string; usuario?: string };
 
-// Wrapper fino para reutilizar seu componente existente
-export default function ReportListagem({
-  dados,
-  filtros,
-  meta,
-}: {
+type Props = {
   dados: Caixa[];
   filtros: Filtros;
   meta: Meta;
-}) {
-  return <ReportHTML dados={dados} filtros={filtros} meta={meta} />;
+  brasaoImgSrc?: string; // ✅ recebe do route
+};
+
+// Wrapper fino para reutilizar seu componente existente
+export default function ReportListagem({ dados, filtros, meta, brasaoImgSrc }: Props) {
+  return <ReportHTML dados={dados} filtros={filtros} meta={meta} brasaoImgSrc={brasaoImgSrc} />;
 }

@@ -1,93 +1,83 @@
-import { getUserServer } from "@/lib/auth/getUserServer";
-import { createSupabaseServer } from "@/lib/supabaseServer";
+// app/relatorios/_components/ReportOverviewStatic.tsx
+// ✅ Versão 100% síncrona para uso no PDF (renderToStaticMarkup)
+
 import Donut from "./charts/Donut";
 import Bars from "./charts/Bars";
-import { ReportHeader } from "@/components/reports/ReportHeader";
-import type { ReportHeaderMeta } from "@/components/reports/ReportHeader"; // ✅ importa o tipo correto
 
-type Props = { brasaoImgSrc?: string }; // recebe do route
+export type StaticHeaderMeta = {
+  titulo: string;
+  geradoEmISO: string;
+  usuario?: string | null;
+  brasaoImgSrc?: string; // deve vir pronto (Data URI) pelo route
+};
 
-// Processos — exatamente como na Dashboard
-const TBL_PROCESSOS = "processos";
-const COL_PROC_TIPO = "tipo_processo"; // "judicial" | "administrativo"
+type Props = {
+  header: StaticHeaderMeta; // inclui brasaoImgSrc
+  totalCaixas: number;
+  destPreservar: number;
+  destEliminar: number;
+  pTot: number;
+  pJud: number;
+  pAdm: number;
+  docsAdm: number;
+  cxJud: number;
+  cxAdm: number;
+  cxDoc: number;
+};
 
-// Documentos Administrativos
-const TBL_DOCS_ADM = "documentos_adm";
-
-export default async function ReportOverview({ brasaoImgSrc }: Props) {
-  const { user } = await getUserServer();
-  const supabase: any = await createSupabaseServer(); // tipagem leve
-
-  // ---------- CAIXAS (KPIs) ----------
-  const { data: caixas, error: caixasErr } = await supabase
-    .from("caixas")
-    .select("id, tipo, destinacao, user_id")
-    .eq("user_id", user!.id);
-
-  if (caixasErr) {
-    return (
-      <div className="mx-auto max-w-[760px] text-gray-900">
-        <header className="mb-6">
-          <h1 className="text-xl font-semibold">Relatório Geral</h1>
-        </header>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          Falha ao carregar as caixas.
-        </div>
-      </div>
-    );
-  }
-
-  const rows = (caixas ?? []) as Array<{
-    id: string;
-    tipo: string | null;
-    destinacao: string | null;
-  }>;
-  const totalCaixas = rows.length;
-  const destPreservar = rows.filter((r) => r.destinacao === "preservar").length;
-  const destEliminar = rows.filter((r) => r.destinacao === "eliminar").length;
-
-  // ---------- Helpers ----------
-  async function headCount(table: string, filters?: Record<string, string>): Promise<number> {
-    let q = supabase.from(table).select("id", { count: "exact", head: true });
-    if (filters) {
-      for (const [k, v] of Object.entries(filters)) q = q.eq(k, v);
-    }
-    const { count } = await q;
-    return count ?? 0;
-  }
-
-  // ---------- Processos ----------
-  const [pTot, pJud, pAdm] = await Promise.all([
-    headCount(TBL_PROCESSOS), // RLS deve limitar por user_id
-    headCount(TBL_PROCESSOS, { [COL_PROC_TIPO]: "judicial" }),
-    headCount(TBL_PROCESSOS, { [COL_PROC_TIPO]: "administrativo" }),
-  ]);
-
-  // ---------- Documentos Administrativos ----------
-  const docsAdm = await headCount(TBL_DOCS_ADM, { user_id: user!.id });
-
-  // ---------- Caixas por tipo ----------
-  const cxJud = rows.filter((r) => r.tipo === "processo_judicial").length;
-  const cxAdm = rows.filter((r) => r.tipo === "processo_administrativo").length;
-  const cxDoc = rows.filter((r) => r.tipo === "documento_administrativo").length;
-
+export default function ReportOverviewStatic({
+  header,
+  totalCaixas,
+  destPreservar,
+  destEliminar,
+  pTot,
+  pJud,
+  pAdm,
+  docsAdm,
+  cxJud,
+  cxAdm,
+  cxDoc,
+}: Props) {
   const tipoLabels: Record<string, string> = {
     processo_judicial: "Processos Judiciais",
     processo_administrativo: "Processo Administrativo",
     documento_administrativo: "Documentos Administrativos",
   };
 
-  // ---------- Cabeçalho (meta) ----------
-  const headerMeta: ReportHeaderMeta = {
-    titulo: "10ª Zona Eleitoral - Guarabira",
-    geradoEmISO: new Date().toISOString(),
-    usuario: user?.email ?? "zon10@tre-pb.jus.br",
-    brasaoImgSrc, // ✅ agora o tipo aceita essa prop
-  };
-
   return (
     <div className="mx-auto max-w-[900px] text-gray-900 overflow-x-hidden print:overflow-visible">
-      {await ReportHeader(headerMeta)} {/* usa o header com o brasão vindo da rota */}
+      {/* ===== Header inline síncrono (sem await) ===== */}
+      <header className="mb-6">
+        <div className="flex items-center gap-3">
+          {header.brasaoImgSrc ? (
+            <div className="h-12 w-12 overflow-hidden rounded-none shrink-0 print:shrink-0">
+              <img
+                src={header.brasaoImgSrc}
+                alt="Brasão da República Federativa do Brasil"
+                width={52}
+                height={52}
+                className="block -translate-x-[2px] object-contain select-none"
+                draggable={false}
+                loading="eager"
+                style={{ imageRendering: "auto" }}
+              />
+            </div>
+          ) : (
+            <div className="h-12 w-12" />
+          )}
+
+          <div className="flex-1">
+            <h1 className="text-xl text-gray-800">{header.titulo}</h1>
+            <p className="text-xs text-gray-600">
+              Gerado em: {new Date(header.geradoEmISO).toLocaleString("pt-BR")}
+            </p>
+            {header.usuario && <p className="text-xs text-gray-600">Usuário: {header.usuario}</p>}
+          </div>
+        </div>
+
+        {/* Linha sutil abaixo do bloco */}
+        <div className="mt-2 border-b border-gray-200/70 print:border-gray-300/80" />
+      </header>
 
       <h2 className="text-2xl text-gray-600 font-semibold text-center mt-3 mb-6">
         Resumo Geral do Inventário
@@ -110,10 +100,7 @@ export default async function ReportOverview({ brasaoImgSrc }: Props) {
       </section>
 
       {/* —— LINHA 1: APENAS OS 2 DONUTS —— */}
-      <section
-        className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2 print:grid-cols-2"
-        style={{ breakInside: "avoid" }}
-      >
+      <section className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2 print:grid-cols-2" style={{ breakInside: "avoid" }}>
         <div className="rounded-xl border border-gray-200 p-3" style={{ breakInside: "avoid" }}>
           <div className="aspect-square w-full max-w-[220px] mx-auto">
             <Donut
@@ -170,9 +157,7 @@ export default async function ReportOverview({ brasaoImgSrc }: Props) {
       <section className="rounded-xl border border-gray-200 p-4 text-sm">
         <h2 className="mb-3 text-[15px] font-medium text-gray-700">Caixas por tipo</h2>
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {(
-            ["processo_judicial", "processo_administrativo", "documento_administrativo"] as const
-          ).map((t) => (
+          {(["processo_judicial", "processo_administrativo", "documento_administrativo"] as const).map((t) => (
             <li key={t} className="rounded-lg border border-gray-200 p-3">
               <div className="text-[14px] text-gray-500 text-center">{tipoLabels[t]}</div>
               <div className="text-xl font-semibold text-center">

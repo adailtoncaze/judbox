@@ -132,7 +132,7 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
     }
   };
 
-  // injeta CSS no documento do iframe para forçar fundo branco e evitar “faixa”
+  // injeta CSS no documento do iframe para forçar fundo branco e dar respiro interno (topo menor)
   const paintIframeWhite = () => {
     const el = iframeRef.current;
     if (!el) return;
@@ -149,12 +149,18 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
       style.innerHTML = `
         :root, html, body { background: #ffffff !important; }
         html { color-scheme: light; scrollbar-gutter: stable; }
-        body { min-height: 100%; }
+        /* respiro interno do preview — topo reduzido */
+        body { min-height: 100%; padding-top: 2px !important; padding-bottom: 32px !important; }
+        @media (min-width: 768px) {
+          body { padding-top: 4px !important; padding-bottom: 40px !important; }
+        }
+        /* se o wrapper do preview tiver padding próprio, zere o topo para colar mais ao container */
+        body > div:first-child { padding-top: 2px !important; margin-top: 0 !important; }
       `;
       doc.head.appendChild(style);
 
       doc.documentElement.style.backgroundColor = "#ffffff";
-      doc.body.style.backgroundColor = "#ffffff";
+      (doc.body as HTMLBodyElement).style.backgroundColor = "#ffffff";
     } catch {
       // silêncio: se o iframe não for mesma origem
     }
@@ -168,69 +174,32 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
       <div
         className="relative z-[1001] mx-4 flex w-full max-w-6xl flex-col overflow-hidden rounded bg-white shadow-2xl ring-1 ring-black/10"
         role="document"
+        aria-labelledby="pdf-preview-modal-title"
       >
-        {/* Header — INDIGO */}
-        <div className="flex items-center justify-between border-b border-indigo-700/50 px-4 py-3 bg-indigo-600 text-white">
-          <div className="flex items-center gap-2">
-            {/* Segmented control */}
-            <div className="inline-flex items-center gap-1 rounded-xl border border-indigo-300/30 bg-indigo-500/50 p-1 shadow-sm">
-              {(["geral", "listagem", "por-tipo"] as Kind[]).map((k) => {
-                const active = kind === k;
-                return (
-                  <button
-                    key={k}
-                    onClick={() => setKind(k)}
-                    aria-pressed={active}
-                    className={[
-                      "px-3 py-1.5 text-xs font-semibold rounded-lg transition",
-                      "outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-600",
-                      active
-                        ? "bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-200"
-                        : "bg-white/0 text-white/90 hover:bg-white/10"
-                    ].join(" ")}
-                  >
-                    {k === "geral" ? "Geral" : k === "listagem" ? "Listagem" : "Por tipo"}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        {/* Header — INDIGO (agora com Título + Fechar) */}
+        <div className="flex items-center justify-between border-b border-indigo-700/50 px-4 py-2 bg-indigo-600 text-white">
+          <h3
+            id="pdf-preview-modal-title"
+            className="text-sm md:text-base font-semibold tracking-wide"
+          >
+           Central de Relatórios
+          </h3>
 
-          <div className="flex items-center gap-2">
-            {/* Primário: branco sobre header indigo */}
-            <button
-              onClick={baixarPDF}
-              disabled={downloading}
-              className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-60 transition"
-            >
-              <DocumentArrowDownIcon className="h-4 w-4 text-indigo-700" />
-              {downloading ? (
-                <>
-                  <span className="animate-spin border-2 border-indigo-700 border-t-transparent rounded-full w-4 h-4" />
-                  Baixando...
-                </>
-              ) : (
-                "Baixar PDF"
-              )}
-            </button>
-
-            {/* Secundário: transparente com borda branca */}
-            <button
-              onClick={onClose}
-              className="inline-flex items-center gap-2 rounded-lg border border-white/70 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10 transition"
-            >
-              <XMarkIcon className="h-4 w-4 text-white" />
-              Fechar
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="inline-flex items-center gap-2 rounded-lg border border-white/70 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10 transition cursor-pointer"
+          >
+            <XMarkIcon className="h-4 w-4 text-white" />
+            Fechar
+          </button>
         </div>
 
-        {/* Body */}
-        <div className="flex h-[75vh] w-full bg-white">
-          {/* filtros (quando aplicável) — contraste leve */}
+        {/* Body — espaçamento EXTERNO (restaurado) */}
+        <div className="flex h-[75vh] w-full bg-white px-5 md:px-6 py-5 md:py-6 gap-4">
+          {/* Coluna de filtros (quando aplicável) */}
           {kind === "geral" ? null : (
-            <div className="w-full max-w-[260px] shrink-0 border-r border-gray-100 bg-gray-50">
-              <div className="p-3">
+            <div className="w-full max-w-[260px] shrink-0 bg-gray-50 rounded-lg ring-1 ring-gray-200 overflow-hidden p-3 md:p-4">
+              <div>
                 <label className="block text-xs font-medium text-indigo-800">Tipo</label>
                 <select
                   value={tipoSel}
@@ -244,7 +213,7 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
                 </select>
               </div>
 
-              <div className="p-3">
+              <div className="mt-3">
                 <label className="block text-xs font-medium text-indigo-800"># Caixa (número)</label>
                 <input
                   value={numeroSel}
@@ -259,24 +228,74 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
             </div>
           )}
 
-          {/* preview */}
-          <div className="relative flex-1 bg-white">
-            {iframeLoading && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white">
-                <span className="animate-spin border-2 border-indigo-600 border-t-transparent rounded-full w-8 h-8" />
-                <p className="text-sm text-gray-600">Carregando Relatório, aguarde...</p>
+          {/* Coluna principal */}
+          <div className="relative flex-1 min-w-0 flex flex-col gap-3 md:gap-4">
+            {/* 🔹 Card de controles (sticky) */}
+            <div className="sticky top-0 z-20 -mt-1">
+              <div className="rounded-lg ring-1 ring-gray-200 bg-gray-50 px-3 py-2 md:px-4 md:py-2.5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {/* Segmented control */}
+                  <div className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 p-1">
+                    {(["geral", "listagem", "por-tipo"] as Kind[]).map((k) => {
+                      const active = kind === k;
+                      return (
+                        <button
+                          key={k}
+                          onClick={() => setKind(k)}
+                          aria-pressed={active}
+                          className={[
+                            "px-3 py-1.5 text-xs font-semibold rounded-lg transition",
+                            "outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer",
+                            active
+                              ? "bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-200"
+                              : "bg-transparent text-indigo-800/90 hover:bg-white/70"
+                          ].join(" ")}
+                        >
+                          {k === "geral" ? "Resumo Geral" : k === "listagem" ? "Caixas" : "Processos/Documentos"}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Botão Baixar PDF */}
+                  <button
+                    onClick={baixarPDF}
+                    disabled={downloading}
+                    className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60 transition cursor-pointer"
+                  >
+                    <DocumentArrowDownIcon className="h-4 w-4 text-white" />
+                    {downloading ? (
+                      <>
+                        <span className="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4" />
+                        Baixando...
+                      </>
+                    ) : (
+                      "Baixar PDF"
+                    )}
+                  </button>
+                </div>
               </div>
-            )}
-            <iframe
-              ref={iframeRef}
-              title="Pré-visualização do Relatório"
-              src={previewUrl}
-              className="h-full w-full bg-white"
-              onLoad={() => {
-                paintIframeWhite();
-                setIframeLoading(false);
-              }}
-            />
+            </div>
+
+            {/* Preview (card) — padding INTERNO reduzido */}
+            <div className="relative flex-1 bg-white rounded-lg ring-1 ring-gray-200 overflow-hidden p-2 md:p-3">
+              {iframeLoading && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white">
+                  <span className="animate-spin border-2 border-indigo-600 border-t-transparent rounded-full w-8 h-8" />
+                  <p className="text-sm text-gray-600">Carregando Relatório, aguarde...</p>
+                </div>
+              )}
+              <iframe
+                ref={iframeRef}
+                title="Pré-visualização do Relatório"
+                src={previewUrl}
+                className="h-full w-full bg-white"
+                onLoad={() => {
+                  paintIframeWhite();
+                  setIframeLoading(false);
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
