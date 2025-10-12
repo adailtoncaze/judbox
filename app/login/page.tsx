@@ -57,7 +57,7 @@ export default function LoginPage() {
       {/* Conteúdo centralizado */}
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-md">
-          <div className="bg-white/90 backdrop-blur rounded-2xl shadow-xl p-8 space-y-6">
+          <div className="bg-white/90 backdrop-blur rounded shadow-xl p-8 space-y-6">
             {/* Logo com destaque sutil */}
             <div className="flex flex-col items-center gap-3">
               <Image
