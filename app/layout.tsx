@@ -1,6 +1,7 @@
 import "./globals.css"
 import { Inter } from "next/font/google"
 import { ToastProvider } from "@/hooks/useToast"
+import UpdatePrompt from "./UpdatePrompt"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       {/* também suprimimos no body para evitar warnings caso extensões injetem style inline */}
       <body className={inter.className} suppressHydrationWarning>
         <ToastProvider>{children}</ToastProvider>
+        <UpdatePrompt />
       </body>
     </html>
   )

@@ -1,27 +1,32 @@
+// next.config.js
+const withPWA = require('next-pwa')({
+  dest: 'public',
+  register: true,
+  skipWaiting: false, // <— mais seguro p/ updates (ver nota)
+  disable: process.env.NODE_ENV === 'development',
+  buildExcludes: [/middleware-manifest\.json$/],
+});
+
 /** @type {import('next').NextConfig} */
-const withPWA = require("next-pwa")({
-  dest: "public",        // local onde o service worker será gerado
-  register: true,        // registra automaticamente o SW
-  skipWaiting: true,     // atualiza automaticamente novas versões
-  disable: process.env.NODE_ENV === "development", // ativa apenas em produção
-  buildExcludes: [/middleware-manifest\.json$/],   // evita conflitos no build
-})
-
 const nextConfig = {
-  reactStrictMode: true, // mantém boas práticas no React
-  swcMinify: true,       // minificação mais rápida com SWC
-
-  eslint: {
-    // 🚫 Ignora erros e warnings do ESLint durante o build (ex: Vercel)
-    ignoreDuringBuilds: true,
+  reactStrictMode: true,
+  swcMinify: true,
+  eslint: { ignoreDuringBuilds: true },
+  // REMOVER: experimental.appDir (legado)
+  async headers() {
+    const isProd = process.env.NODE_ENV === 'production';
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
+          ...(isProd ? [{ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' }] : []),
+        ],
+      },
+    ];
   },
+};
 
-  experimental: {
-    // 🔮 Caso esteja usando App Router (Next.js 13+)
-    appDir: true,
-  },
-}
-
-// 🔧 Exporta com suporte PWA sem perder suas configs
-module.exports = withPWA(nextConfig)
-
+module.exports = withPWA(nextConfig);
