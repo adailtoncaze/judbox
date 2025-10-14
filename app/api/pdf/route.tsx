@@ -1,5 +1,5 @@
 // app/api/pdf/route.ts
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import chromium from "@sparticuz/chromium";
 import puppeteerCore from "puppeteer-core";
 
@@ -14,29 +14,18 @@ import { getBrasaoDataURI } from "@/lib/brasao";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
-  const contentType = req.headers.get("content-type") || "";
-  let kind: "geral" | "listagem" | "por-tipo" = "listagem";
-  let filters: any = {};
-
-  if (contentType.includes("application/json")) {
-    const body = await req.json().catch(() => ({} as any));
-    kind = (body?.kind ?? "listagem") as any;
-    filters = body?.filters ?? {};
-  } else {
-    const form = await req.formData().catch(() => null);
-    kind = ((form?.get("kind") as string) || "listagem") as any;
-    filters = {
-      tipo: (form?.get("tipo") as string) || "todos",
-      numero: (form?.get("numero") as string) || "",
-    };
-  }
-
-  const { user } = await getUserServer();
-  if (!user) return new Response("Não autenticado", { status: 401 });
-
-  const brasaoImgSrc = await getBrasaoDataURI();
-
+// --- util: gera Buffer de PDF a partir de kind/filters ---
+async function generatePdfBuffer({
+  kind,
+  filters,
+  userEmail,
+  brasaoImgSrc,
+}: {
+  kind: "geral" | "listagem" | "por-tipo";
+  filters: { tipo?: string | null; numero?: string | null };
+  userEmail: string | undefined | null;
+  brasaoImgSrc: string;
+}) {
   const { renderToStaticMarkup } = await import("react-dom/server");
   let bodyHTML = "";
 
@@ -79,7 +68,7 @@ export async function POST(req: NextRequest) {
           titulo: "10ª Zona Eleitoral - Guarabira",
           subtitulo: kind === "por-tipo" ? `Tipo: ${filters?.tipo ?? "—"}` : "Listagem completa",
           geradoEmISO: new Date().toISOString(),
-          usuario: user.email ?? undefined,
+          usuario: userEmail ?? undefined,
         }}
         brasaoImgSrc={brasaoImgSrc}
       />
@@ -139,24 +128,95 @@ export async function POST(req: NextRequest) {
           justify-content:space-between;
           align-items:center;
         ">
-          <span>Usuário: ${user.email ?? "—"}</span>
+          <span>Usuário: ${userEmail ?? "—"}</span>
           <span>Página <span class="pageNumber"></span> / <span class="totalPages"></span></span>
         </div>`,
       margin: { top: "20mm", bottom: "20mm", left: "10mm", right: "10mm" },
     });
 
+    // normaliza em ArrayBuffer puro (NextResponse aceita Buffer/TypedArray também)
     const uint8 = pdfRaw instanceof Uint8Array ? pdfRaw : new Uint8Array(pdfRaw as any);
     const pureAB = new ArrayBuffer(uint8.byteLength);
     new Uint8Array(pureAB).set(uint8);
-
-    return new Response(pureAB, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="judbox-relatorio.pdf"',
-        "Cache-Control": "no-store",
-      },
-    });
+    return pureAB;
   } finally {
     await browser.close();
   }
+}
+
+// -------------------- GET (pré-visualização inline) --------------------
+export async function GET(req: NextRequest) {
+  const { user } = await getUserServer();
+  if (!user) return new NextResponse("Não autenticado", { status: 401 });
+
+  const brasaoImgSrc = await getBrasaoDataURI();
+
+  const { searchParams } = new URL(req.url);
+  const kind = (searchParams.get("kind") || "listagem") as "geral" | "listagem" | "por-tipo";
+  const filters =
+    kind === "geral"
+      ? {}
+      : {
+          tipo: searchParams.get("tipo") || "todos",
+          numero: searchParams.get("numero") || "",
+        };
+
+  const inline = searchParams.get("inline") === "1";
+  const filename = "judbox-relatorio.pdf";
+
+  const pdfAB = await generatePdfBuffer({
+    kind,
+    filters,
+    userEmail: user.email,
+    brasaoImgSrc,
+  });
+
+  return new NextResponse(pdfAB, {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": inline
+        ? `inline; filename="${filename}"`
+        : `attachment; filename="${filename}"`,
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+// -------------------- POST (download - mantém seu fluxo) --------------------
+export async function POST(req: NextRequest) {
+  const contentType = req.headers.get("content-type") || "";
+  let kind: "geral" | "listagem" | "por-tipo" = "listagem";
+  let filters: any = {};
+
+  if (contentType.includes("application/json")) {
+    const body = await req.json().catch(() => ({} as any));
+    kind = (body?.kind ?? "listagem") as any;
+    filters = body?.filters ?? {};
+  } else {
+    const form = await req.formData().catch(() => null);
+    kind = ((form?.get("kind") as string) || "listagem") as any;
+    filters = {
+      tipo: (form?.get("tipo") as string) || "todos",
+      numero: (form?.get("numero") as string) || "",
+    };
+  }
+
+  const { user } = await getUserServer();
+  if (!user) return new NextResponse("Não autenticado", { status: 401 });
+
+  const brasaoImgSrc = await getBrasaoDataURI();
+  const pdfAB = await generatePdfBuffer({
+    kind,
+    filters,
+    userEmail: user.email,
+    brasaoImgSrc,
+  });
+
+  return new NextResponse(pdfAB, {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": 'attachment; filename="judbox-relatorio.pdf"',
+      "Cache-Control": "no-store",
+    },
+  });
 }

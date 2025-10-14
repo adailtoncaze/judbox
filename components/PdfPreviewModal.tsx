@@ -1,7 +1,7 @@
 // components/PdfPreviewModal.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { XMarkIcon, DocumentArrowDownIcon } from "@heroicons/react/24/outline";
 
 type Kind = "geral" | "listagem" | "por-tipo";
@@ -86,15 +86,24 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
     if (open) setIframeLoading(true);
   }, [open, kind, tipoSel, numeroSel]);
 
+ 
+ // URL same-origin para PREVIEW HTML (não PDF)
+const previewUrl = useMemo(() => {
+  const p = new URLSearchParams(
+    kind === "geral"
+      ? { kind, ts: String(Date.now()) }
+      : {
+          kind,
+          tipo: tipoSel || "todos",
+          numero: numeroSel || "",
+          ts: String(Date.now()), // cache-bust
+        }
+  );
+  return `/relatorios/caixas/preview?${p.toString()}`;
+}, [kind, tipoSel, numeroSel]);
+
   // --- Importante: não retornar antes dos hooks acima ---
   if (!open) return null;
-
-  // Query da pré-visualização (sem datas)
-  const qs = new URLSearchParams(
-    kind === "geral" ? { kind } : { kind, tipo: tipoSel || "todos", numero: numeroSel || "" }
-  ).toString();
-
-  const previewUrl = `/relatorios/caixas/preview?${qs}`;
 
   const baixarPDF = async () => {
     try {
@@ -132,40 +141,6 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
     }
   };
 
-  // injeta CSS no documento do iframe para forçar fundo branco e dar respiro interno (topo menor)
-  const paintIframeWhite = () => {
-    const el = iframeRef.current;
-    if (!el) return;
-    const doc = el.contentDocument || el.contentWindow?.document;
-    if (!doc) return;
-
-    try {
-      doc.body.classList.remove(
-        "bg-gray-50","bg-slate-50","bg-neutral-50","bg-zinc-50",
-        "bg-gray-100","bg-slate-100","bg-neutral-100","bg-zinc-100"
-      );
-
-      const style = doc.createElement("style");
-      style.innerHTML = `
-        :root, html, body { background: #ffffff !important; }
-        html { color-scheme: light; scrollbar-gutter: stable; }
-        /* respiro interno do preview — topo reduzido */
-        body { min-height: 100%; padding-top: 2px !important; padding-bottom: 32px !important; }
-        @media (min-width: 768px) {
-          body { padding-top: 4px !important; padding-bottom: 40px !important; }
-        }
-        /* se o wrapper do preview tiver padding próprio, zere o topo para colar mais ao container */
-        body > div:first-child { padding-top: 2px !important; margin-top: 0 !important; }
-      `;
-      doc.head.appendChild(style);
-
-      doc.documentElement.style.backgroundColor = "#ffffff";
-      (doc.body as HTMLBodyElement).style.backgroundColor = "#ffffff";
-    } catch {
-      // silêncio: se o iframe não for mesma origem
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center" role="dialog" aria-modal="true">
       {/* overlay — não fecha ao clicar */}
@@ -178,11 +153,8 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
       >
         {/* Header — INDIGO (agora com Título + Fechar) */}
         <div className="flex items-center justify-between border-b border-indigo-700/50 px-4 py-2 bg-indigo-600 text-white">
-          <h3
-            id="pdf-preview-modal-title"
-            className="text-sm md:text-base font-semibold tracking-wide"
-          >
-           Central de Relatórios
+          <h3 id="pdf-preview-modal-title" className="text-sm md:text-base font-semibold tracking-wide">
+            Central de Relatórios
           </h3>
 
           <button
@@ -248,7 +220,7 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
                             "outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer",
                             active
                               ? "bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-200"
-                              : "bg-transparent text-indigo-800/90 hover:bg-white/70"
+                              : "bg-transparent text-indigo-800/90 hover:bg-white/70",
                           ].join(" ")}
                         >
                           {k === "geral" ? "Resumo Geral" : k === "listagem" ? "Caixas" : "Processos/Documentos"}
@@ -290,10 +262,8 @@ export default function PdfPreviewModal({ open, onClose, tipo, numero }: Props) 
                 title="Pré-visualização do Relatório"
                 src={previewUrl}
                 className="h-full w-full bg-white"
-                onLoad={() => {
-                  paintIframeWhite();
-                  setIframeLoading(false);
-                }}
+                // ⚠️ Não acessar contentWindow/document -> evita SecurityError
+                onLoad={() => setIframeLoading(false)}
               />
             </div>
           </div>
