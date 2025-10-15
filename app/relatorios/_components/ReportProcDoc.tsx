@@ -59,9 +59,11 @@ export default function ReportProcDoc({
   const from = pagination ? (pagination.page - 1) * pagination.pageSize + 1 : (dados.length ? 1 : 0);
   const to = pagination ? Math.min(pagination.page * pagination.pageSize, total) : dados.length;
 
+  const hasPagination = !!pagination && pagination.totalPages > 1;
+
   return (
     <div className="mx-auto max-w-[760px] text-gray-900">
-      {/* Cabeçalho (igual ao de caixas): brasão + textos */}
+      {/* Cabeçalho (mantido) */}
       <header className="mb-6 no-break">
         <div className="flex items-center gap-3">
           {brasaoImgSrc ? (
@@ -90,13 +92,12 @@ export default function ReportProcDoc({
           </div>
         </div>
 
-        {/* Título central (igual ao de caixas) */}
         <h2 className="rounded bg-gray-50 text-2xl text-gray-600 font-semibold text-center pt-6 pb-4 mt-6">
           {headerTitle}
         </h2>
       </header>
 
-      {/* Cards de resumo no estilo do de caixas */}
+      {/* Cards (mantidos) */}
       <section
         className="
           mb-4 grid grid-cols-1 gap-3 text-center text-xs
@@ -122,7 +123,7 @@ export default function ReportProcDoc({
         </div>
       </section>
 
-      {/* Tabela (com regra "Todos" → mostra coluna Tipo) */}
+      {/* Tabela (mantida) */}
       <section>
         <table className="w-full border-collapse text-sm">
           <thead className="bg-gray-50">
@@ -178,43 +179,74 @@ export default function ReportProcDoc({
                   </td>
                 </tr>
               ))
-            ) : filtros.tipo === "documento_administrativo" ? (
-              dados.map((r) => (
-                <tr key={r.id}>
-                  <td className="whitespace-nowrap px-4 py-2">{r.numero_caixa ?? "—"}</td>
-                  <td className="px-4 py-2">{r.especie_documental ?? "—"}</td>
-                  <td className="px-4 py-2">{r.data_limite ?? "—"}</td>
-                </tr>
-              ))
             ) : (
-              dados.map((r) => (
-                <tr key={r.id}>
-                  <td className="whitespace-nowrap px-4 py-2">{r.numero_caixa ?? "—"}</td>
-                  <td className="px-4 py-2">{r.classe_processual ?? "—"}</td>
-                  <td className="px-4 py-2">{r.numero_processo ?? "—"}</td>
-                  <td className="px-4 py-2">{r.protocolo ?? "—"}</td>
-                </tr>
-              ))
+              filtros.tipo === "documento_administrativo"
+                ? dados.map((r) => (
+                    <tr key={r.id}>
+                      <td className="whitespace-nowrap px-4 py-2">{r.numero_caixa ?? "—"}</td>
+                      <td className="px-4 py-2">{r.especie_documental ?? "—"}</td>
+                      <td className="px-4 py-2">{r.data_limite ?? "—"}</td>
+                    </tr>
+                  ))
+                : dados.map((r) => (
+                    <tr key={r.id}>
+                      <td className="whitespace-nowrap px-4 py-2">{r.numero_caixa ?? "—"}</td>
+                      <td className="px-4 py-2">{r.classe_processual ?? "—"}</td>
+                      <td className="px-4 py-2">{r.numero_processo ?? "—"}</td>
+                      <td className="px-4 py-2">{r.protocolo ?? "—"}</td>
+                    </tr>
+                  ))
             )}
           </tbody>
         </table>
       </section>
+
+      {/* Paginação (somente rodapé, igual à lista de caixas) */}
+      {hasPagination && (
+        <div className="mt-3 mb-0 flex items-center justify-end">
+          <div className="inline-flex gap-1 text-sm">
+            <a
+              href={pagination!.makeHref(1)}
+              className={`px-2 py-1 border rounded ${pagination!.page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-gray-50"}`}
+              aria-label="Primeira"
+            >
+              «
+            </a>
+            <a
+              href={pagination!.makeHref(clamp(pagination!.page - 1, 1, pagination!.totalPages))}
+              className={`px-2 py-1 border rounded ${pagination!.page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-gray-50"}`}
+              aria-label="Anterior"
+            >
+              ‹
+            </a>
+            <a
+              href={pagination!.makeHref(clamp(pagination!.page + 1, 1, pagination!.totalPages))}
+              className={`px-2 py-1 border rounded ${pagination!.page >= pagination!.totalPages ? "pointer-events-none opacity-40" : "hover:bg-gray-50"}`}
+              aria-label="Próxima"
+            >
+              ›
+            </a>
+            <a
+              href={pagination!.makeHref(pagination!.totalPages)}
+              className={`px-2 py-1 border rounded ${pagination!.page >= pagination!.totalPages ? "pointer-events-none opacity-40" : "hover:bg-gray-50"}`}
+              aria-label="Última"
+            >
+              »
+            </a>
+          </div>
+        </div>
+      )}
 
       <footer className="mt-6 text-center text-[10px] text-gray-500">
         Documento gerado pelo JudBox · {new Date(meta.geradoEmISO).toLocaleDateString("pt-BR")}
       </footer>
 
       <style>{`
-  /* Evite quebras indevidas só onde precisa */
   .no-break { break-inside: avoid; page-break-inside: avoid; }
-
-  /* Cabeçalho fixo na impressão */
   @media print {
     table, tr, td, th { break-inside: auto; page-break-inside: auto; }
-    thead { display: table-header-group; } /* fixa o cabeçalho em cada página */
+    thead { display: table-header-group; }
     tfoot { display: table-footer-group; }
-
-    /* Compactar um pouco as linhas ao imprimir */
     tbody td { padding-top: 6px !important; padding-bottom: 6px !important; line-height: 1.25; }
   }
 `}</style>

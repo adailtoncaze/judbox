@@ -1,29 +1,8 @@
 import { createSupabaseServer } from "@/lib/supabaseServer";
 import { getUserServer } from "@/lib/auth/getUserServer";
-import type { User } from "@supabase/supabase-js";
 
-export type TipoProcDoc =
-  | "todos"
-  | "processo_judicial"
-  | "processo_administrativo"
-  | "documento_administrativo";
-
-export type ProcDocItem = {
-  id: string;
-  caixa_id: string;
-  numero_caixa: string | null;
-  tipo_item: Exclude<TipoProcDoc, "todos">;
-  classe_processual: string | null;
-  especie_documental: string | null;
-  numero_processo: string | null;
-  protocolo: string | null;
-  data_limite: string | null;
-  created_at: string | null;
-  user_id?: string | null;
-};
-
-export type GetProcDocInput = {
-  tipo: TipoProcDoc;
+export type FiltrosProcDoc = {
+  tipo: "todos" | "processo_judicial" | "processo_administrativo" | "documento_administrativo";
   numero?: string | null;
   page?: number | null;
   pageSize?: number | null;
@@ -31,21 +10,21 @@ export type GetProcDocInput = {
   offset?: number | null;
 };
 
-export type GetProcDocResult = {
-  data: ProcDocItem[];
-  count: number;
-  user: User | null;
+export type RowProcDoc = {
+  id: string;
+  caixa_id: string;
+  numero_caixa: string | null;
+  numero_caixa_num?: number | null;
+  tipo_item: "processo_judicial" | "processo_administrativo" | "documento_administrativo";
+  classe_processual: string | null;
+  especie_documental: string | null;
+  numero_processo: string | null;
+  protocolo: string | null;
+  data_limite: string | null;
+  created_at: string | null;
 };
 
-function normalizaTipo(input?: string | null): Exclude<TipoProcDoc, "todos"> | null {
-  if (!input || input === "todos") return null;
-  const v = input.toLowerCase();
-  if (["judicial","processo_judicial","proc_jud"].includes(v)) return "processo_judicial";
-  if (["administrativo","processo_administrativo","proc_adm","adm_proc"].includes(v)) return "processo_administrativo";
-  if (["documento_administrativo","documentos","doc_adm","docs_adm","adm_doc"].includes(v)) return "documento_administrativo";
-  if (["processo_judicial","processo_administrativo","documento_administrativo"].includes(v as any)) return v as any;
-  return null;
-}
+export type GetProcDocDataResult = { data: RowProcDoc[]; count: number };
 
 export async function getProcDocData({
   tipo,
@@ -54,44 +33,46 @@ export async function getProcDocData({
   pageSize,
   limit,
   offset,
-}: GetProcDocInput): Promise<GetProcDocResult> {
+}: FiltrosProcDoc): Promise<GetProcDocDataResult> {
   const { user } = await getUserServer();
-  if (!user) return { data: [], count: 0, user: null };
+  if (!user) return { data: [], count: 0 };
 
   const supabase = await createSupabaseServer();
 
+  // usa a view com numero_caixa_num
   let query = supabase
-    .from("vw_proc_doc") // ou "vw_proc_doc_mat"
+    .from("vw_proc_doc_num")
     .select(
-      "id, caixa_id, numero_caixa, tipo_item, classe_processual, especie_documental, numero_processo, protocolo, data_limite, created_at, user_id",
+      "id, caixa_id, numero_caixa, numero_caixa_num, tipo_item, classe_processual, especie_documental, numero_processo, protocolo, data_limite, created_at",
       { count: "exact" }
     )
     .eq("user_id", user.id);
 
-  const tipoNorm = normalizaTipo(tipo);
+  if (tipo && tipo !== "todos") query = query.eq("tipo_item", tipo);
+  if (numero) query = query.ilike("numero_caixa", `${numero}%`);
 
-  // 🔹 Filtros
-  if (tipoNorm) query = query.eq("tipo_item", tipoNorm);
-  if (numero && numero.trim() !== "") {
-    query = query.ilike("numero_caixa", `${numero.trim()}%`);
-  }
-
-  // 🔹 Ordenação
-  if (!tipoNorm) {
-    // quando tipo = "todos" → agrupar por tipo
-    query = query.order("tipo_item", { ascending: true })
-                 .order("numero_caixa", { ascending: true }); // secundário (opcional)
+  // ORDEM:
+  // - se "todos": agrupar por tipo_item, depois número
+  // - senão: só por número (com desempates estáveis)
+  if (!tipo || tipo === "todos") {
+    query = query
+      .order("tipo_item", { ascending: true })
+      .order("numero_caixa_num", { ascending: true, nullsFirst: false })
+      .order("numero_caixa", { ascending: true })
+      .order("id", { ascending: true });
   } else {
-    // quando tipo específico → manter recência
-    query = query.order("created_at", { ascending: false });
+    query = query
+      .order("numero_caixa_num", { ascending: true, nullsFirst: false })
+      .order("numero_caixa", { ascending: true })
+      .order("id", { ascending: true });
   }
 
-  // 🔹 Paginação
+  // Paginação
   if (limit != null) {
     const off = offset ?? 0;
     const lim = Math.max(1, limit);
     query = query.range(off, off + lim - 1);
-  } else if (pageSize != null && page != null) {
+  } else if (page && pageSize) {
     const ps = Math.max(1, pageSize);
     const pg = Math.max(1, page);
     const off = (pg - 1) * ps;
@@ -99,10 +80,7 @@ export async function getProcDocData({
   }
 
   const { data, error, count } = await query;
-  if (error) {
-    console.error("getProcDocData error:", error);
-    throw error;
-  }
+  if (error) throw error;
 
-  return { data: (data ?? []) as ProcDocItem[], count: count ?? 0, user };
+  return { data: (data ?? []) as RowProcDoc[], count: count ?? 0 };
 }

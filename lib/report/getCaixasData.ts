@@ -1,4 +1,3 @@
-// lib/report/getCaixasData.ts
 import { createSupabaseServer } from "@/lib/supabaseServer";
 import { getUserServer } from "@/lib/auth/getUserServer";
 import type { User } from "@supabase/supabase-js";
@@ -8,6 +7,7 @@ export type Filtros = { tipo?: string | null; numero?: string | null };
 export type Caixa = {
   id: string;
   numero_caixa: string;
+  numero_caixa_num?: number | null;
   tipo: "processo_administrativo" | "processo_judicial" | "documento_administrativo";
   descricao?: string | null;
   localizacao?: string | null;
@@ -18,9 +18,9 @@ export type Caixa = {
 };
 
 export type GetCaixasDataInput = Filtros & {
-  page?: number | null;     // 1-based
-  pageSize?: number | null; // itens por página
-  limit?: number | null;    // alternativa direta
+  page?: number | null;
+  pageSize?: number | null;
+  limit?: number | null;
   offset?: number | null;
 };
 
@@ -49,25 +49,33 @@ export async function getCaixasData({
 
   const supabase = await createSupabaseServer();
 
+  const tipoNormalizado = normalizaTipo(tipo);
   let query = supabase
     .from("caixas")
     .select(
-      "id, user_id, numero_caixa, tipo, descricao, localizacao, destinacao, data_criacao, data_atualizacao",
-      { count: "exact" } // 👈 total real
+      "id, user_id, numero_caixa, numero_caixa_num, tipo, descricao, localizacao, destinacao, data_criacao, data_atualizacao",
+      { count: "exact" }
     )
     .eq("user_id", user.id);
 
-  const tipoNormalizado = normalizaTipo(tipo);
-  if (tipoNormalizado) {
-    query = query.eq("tipo", tipoNormalizado);
-  }
+  if (tipoNormalizado) query = query.eq("tipo", tipoNormalizado);
+  if (numero) query = query.ilike("numero_caixa", `${numero}%`);
 
-  if (numero) {
-    query = query.ilike("numero_caixa", `${numero}%`);
+  // ORDEM:
+  // - se "todos": agrupar por tipo, depois número
+  // - senão: só por número (com desempates estáveis)
+  if (!tipoNormalizado) {
+    query = query
+      .order("tipo", { ascending: true })
+      .order("numero_caixa_num", { ascending: true, nullsFirst: false })
+      .order("numero_caixa", { ascending: true })
+      .order("id", { ascending: true });
+  } else {
+    query = query
+      .order("numero_caixa_num", { ascending: true, nullsFirst: false })
+      .order("numero_caixa", { ascending: true })
+      .order("id", { ascending: true });
   }
-
-  // Ordenação (mantive sua ordem anterior)
-  query = query.order("tipo", { ascending: true }).order("numero_caixa", { ascending: true });
 
   // Paginação
   if (limit != null) {
@@ -82,16 +90,7 @@ export async function getCaixasData({
   }
 
   const { data, error, count } = await query;
-
-  if (error) {
-    console.error("getCaixasData error:", {
-      code: (error as any).code,
-      message: (error as any).message,
-      details: (error as any).details,
-      hint: (error as any).hint,
-    });
-    throw error;
-  }
+  if (error) throw error;
 
   return { data: (data ?? []) as Caixa[], count: count ?? 0, user };
 }

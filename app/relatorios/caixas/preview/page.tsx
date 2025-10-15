@@ -73,12 +73,14 @@ export default async function PreviewPage({ searchParams }: Props) {
     const page = parseIntSafe(firstOrEmpty(sp.page, ""), 1);
     const pageSize = parseIntSafe(firstOrEmpty(sp.pageSize, ""), 50);
 
+    // ✅ normaliza 'tipo' para evitar falhas de comparação
+    const tipoNorm = (tipo || "todos").toLowerCase();
+    const tipoSel = (["todos","processo_judicial","processo_administrativo","documento_administrativo"].includes(tipoNorm)
+      ? (tipoNorm as any)
+      : "todos") as "todos" | "processo_judicial" | "processo_administrativo" | "documento_administrativo";
+
     const { data, count } = await getProcDocData({
-      tipo: (["todos","processo_judicial","processo_administrativo","documento_administrativo"].includes(
-        tipo
-      )
-        ? (tipo as any)
-        : "todos"),
+      tipo: tipoSel,
       numero,
       page,
       pageSize,
@@ -90,7 +92,7 @@ export default async function PreviewPage({ searchParams }: Props) {
     const makeHref = (targetPage: number) => {
       const p = new URLSearchParams();
       p.set("kind", "por-tipo");
-      p.set("tipo", tipo || "todos");
+      p.set("tipo", tipoSel || "todos");
       p.set("numero", numero || "");
       p.set("page", String(targetPage));
       p.set("pageSize", String(pageSize));
@@ -102,7 +104,7 @@ export default async function PreviewPage({ searchParams }: Props) {
         <ReportProcDoc
           dados={data}
           total={total}
-          filtros={{ tipo, numero }}
+          filtros={{ tipo: tipoSel, numero }}
           meta={{
             titulo: "10ª Zona Eleitoral - Guarabira",
             subtitulo: "Processos/Documentos",
