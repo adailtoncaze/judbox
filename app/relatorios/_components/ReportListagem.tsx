@@ -1,4 +1,3 @@
-// app/relatorios/_components/ReportListagem.tsx
 import ReportHTML from "@/app/relatorios/caixas/_ReportHTML";
 
 // Tipos opcionais — ajuste se já tiver tipos próprios
@@ -13,14 +12,46 @@ type Caixa = {
 type Filtros = { tipo?: string | null; numero?: string | null };
 type Meta = { titulo: string; subtitulo?: string; geradoEmISO: string; usuario?: string };
 
+type Pagination = {
+  page: number;         // 1-based
+  pageSize: number;
+  total: number;        // total real (do filtro atual)
+  totalPages: number;
+  makeHref: (page: number) => string;
+};
+
+type Stats = {
+  all: number; // total de caixas (todos os tipos) para o filtro "todos"
+  jud: number; // processos judiciais
+  adm: number; // processos administrativos
+  doc: number; // documentos administrativos
+};
+
 type Props = {
   dados: Caixa[];
   filtros: Filtros;
   meta: Meta;
-  brasaoImgSrc?: string; // ✅ recebe do route
+  brasaoImgSrc?: string;
+  pagination?: Pagination;
+  stats?: Stats;        // 👈 NOVO
 };
 
-// Wrapper fino para reutilizar seu componente existente
-export default function ReportListagem({ dados, filtros, meta, brasaoImgSrc }: Props) {
-  return <ReportHTML dados={dados} filtros={filtros} meta={meta} brasaoImgSrc={brasaoImgSrc} />;
+export default function ReportListagem({
+  dados,
+  filtros,
+  meta,
+  brasaoImgSrc,
+  pagination,
+  stats,
+}: Props) {
+  return (
+    <ReportHTML
+      dados={dados}
+      filtros={filtros}
+      meta={meta}
+      brasaoImgSrc={brasaoImgSrc}
+      pagination={pagination}
+      stats={stats} // 👈 repassa
+    />
+  );
 }

@@ -1,18 +1,33 @@
 // app/api/pdf/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import chromium from "@sparticuz/chromium";
 import puppeteerCore from "puppeteer-core";
 
 import ReportListagem from "@/app/relatorios/_components/ReportListagem";
 import ReportOverviewStatic from "@/app/relatorios/_components/ReportOverviewStatic";
-import { getOverviewData } from "@/lib/report/getOverviewData";
+import ReportProcDoc from "@/app/relatorios/_components/ReportProcDoc";
 
+import { getOverviewData } from "@/lib/report/getOverviewData";
 import { getCaixasData } from "@/lib/report/getCaixasData";
+import { getProcDocData } from "@/lib/report/getProcDocData";
 import { getUserServer } from "@/lib/auth/getUserServer";
 import { getBrasaoDataURI } from "@/lib/brasao";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// --------- OPTIONS (preflight) ----------
+export async function OPTIONS(_req: Request) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      Allow: "GET, POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
+}
 
 // --- util: gera Buffer de PDF a partir de kind/filters ---
 async function generatePdfBuffer({
@@ -51,7 +66,82 @@ async function generatePdfBuffer({
         cxDoc={m.cxDoc}
       />
     );
+  } else if (kind === "por-tipo") {
+    // ---------- NOVO: evitar corte quando tipo = "todos" ----------
+    const tipoSel = (filters?.tipo as any) ?? "todos";
+    const isTodos =
+      !["processo_judicial", "processo_administrativo", "documento_administrativo"].includes(
+        String(tipoSel).toLowerCase()
+      );
+
+    if (isTodos) {
+      // Busca separada por tipo (sem limit) e concatena
+      const [jud, adm, doc] = await Promise.all([
+        getProcDocData({
+          tipo: "processo_judicial",
+          numero: filters?.numero ?? "",
+          limit: null,
+          offset: null,
+        }),
+        getProcDocData({
+          tipo: "processo_administrativo",
+          numero: filters?.numero ?? "",
+          limit: null,
+          offset: null,
+        }),
+        getProcDocData({
+          tipo: "documento_administrativo",
+          numero: filters?.numero ?? "",
+          limit: null,
+          offset: null,
+        }),
+      ]);
+
+      const total = (jud.count ?? 0) + (adm.count ?? 0) + (doc.count ?? 0);
+      // Ordem desejada por tipo (ajuste se quiser outra ordem)
+      const data = [...(doc.data ?? []), ...(adm.data ?? []), ...(jud.data ?? [])];
+
+      bodyHTML = renderToStaticMarkup(
+        <ReportProcDoc
+          dados={data as any}
+          total={total}
+          filtros={{ tipo: "todos", numero: filters?.numero ?? "" }}
+          meta={{
+            titulo: "10ª Zona Eleitoral - Guarabira",
+            subtitulo: "Processos/Documentos",
+            geradoEmISO: new Date().toISOString(),
+            usuario: userEmail ?? undefined,
+          }}
+          brasaoImgSrc={brasaoImgSrc}
+        />
+      );
+    } else {
+      // Tipo específico: sem paginação no PDF
+      const { data, count } = await getProcDocData({
+        tipo: tipoSel,
+        numero: filters?.numero ?? "",
+        limit: null,
+        offset: null,
+      });
+
+      bodyHTML = renderToStaticMarkup(
+        <ReportProcDoc
+          dados={data as any}
+          total={count ?? (data?.length ?? 0)}
+          filtros={{ tipo: tipoSel, numero: filters?.numero ?? "" }}
+          meta={{
+            titulo: "10ª Zona Eleitoral - Guarabira",
+            subtitulo: "Processos/Documentos",
+            geradoEmISO: new Date().toISOString(),
+            usuario: userEmail ?? undefined,
+          }}
+          brasaoImgSrc={brasaoImgSrc}
+        />
+      );
+    }
+    // ---------------------------------------------------------------
   } else {
+    // kind === "listagem"
     const { data } = await getCaixasData({
       tipo: filters?.tipo ?? null,
       numero: filters?.numero ?? null,
@@ -66,7 +156,7 @@ async function generatePdfBuffer({
         }}
         meta={{
           titulo: "10ª Zona Eleitoral - Guarabira",
-          subtitulo: kind === "por-tipo" ? `Tipo: ${filters?.tipo ?? "—"}` : "Listagem completa",
+          subtitulo: "Listagem completa",
           geradoEmISO: new Date().toISOString(),
           usuario: userEmail ?? undefined,
         }}
@@ -134,7 +224,6 @@ async function generatePdfBuffer({
       margin: { top: "20mm", bottom: "20mm", left: "10mm", right: "10mm" },
     });
 
-    // normaliza em ArrayBuffer puro (NextResponse aceita Buffer/TypedArray também)
     const uint8 = pdfRaw instanceof Uint8Array ? pdfRaw : new Uint8Array(pdfRaw as any);
     const pureAB = new ArrayBuffer(uint8.byteLength);
     new Uint8Array(pureAB).set(uint8);
@@ -145,7 +234,7 @@ async function generatePdfBuffer({
 }
 
 // -------------------- GET (pré-visualização inline) --------------------
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   const { user } = await getUserServer();
   if (!user) return new NextResponse("Não autenticado", { status: 401 });
 
@@ -182,8 +271,8 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// -------------------- POST (download - mantém seu fluxo) --------------------
-export async function POST(req: NextRequest) {
+// -------------------- POST (download) --------------------
+export async function POST(req: Request) {
   const contentType = req.headers.get("content-type") || "";
   let kind: "geral" | "listagem" | "por-tipo" = "listagem";
   let filters: any = {};

@@ -7,7 +7,7 @@ export type Filtros = { tipo?: string | null; numero?: string | null };
 
 export type Caixa = {
   id: string;
-  numero_caixa: string;                 // ← sua coluna real (text)
+  numero_caixa: string;
   tipo: "processo_administrativo" | "processo_judicial" | "documento_administrativo";
   descricao?: string | null;
   localizacao?: string | null;
@@ -17,51 +17,71 @@ export type Caixa = {
   user_id?: string | null;
 };
 
-export type GetCaixasDataResult = { data: Caixa[]; user: User | null };
+export type GetCaixasDataInput = Filtros & {
+  page?: number | null;     // 1-based
+  pageSize?: number | null; // itens por página
+  limit?: number | null;    // alternativa direta
+  offset?: number | null;
+};
+
+export type GetCaixasDataResult = { data: Caixa[]; count: number; user: User | null };
 
 function normalizaTipo(input?: string | null) {
   if (!input || input === "todos") return null;
-
   const v = input.toLowerCase();
-  // mapeia possíveis nomes “curtos” usados no UI para os do CHECK
   if (["judicial", "processo_judicial", "proc_jud"].includes(v)) return "processo_judicial";
   if (["processo_administrativo", "adm", "proc_adm", "adm_proc"].includes(v)) return "processo_administrativo";
   if (["documento_administrativo", "docs", "adm_doc", "documentos"].includes(v)) return "documento_administrativo";
-
-  // Se já vier correto, devolve como está
   if (["processo_judicial", "processo_administrativo", "documento_administrativo"].includes(v)) return v;
-
   return null;
 }
 
-export async function getCaixasData(filtros: Filtros): Promise<GetCaixasDataResult> {
+export async function getCaixasData({
+  tipo,
+  numero,
+  page,
+  pageSize,
+  limit,
+  offset,
+}: GetCaixasDataInput): Promise<GetCaixasDataResult> {
   const { user } = await getUserServer();
-  if (!user) return { data: [], user: null };
+  if (!user) return { data: [], count: 0, user: null };
 
   const supabase = await createSupabaseServer();
 
   let query = supabase
     .from("caixas")
     .select(
-      "id, user_id, numero_caixa, tipo, descricao, localizacao, destinacao, data_criacao, data_atualizacao"
+      "id, user_id, numero_caixa, tipo, descricao, localizacao, destinacao, data_criacao, data_atualizacao",
+      { count: "exact" } // 👈 total real
     )
-    .eq("user_id", user.id); // mantém filtro por dono (reforça RLS)
+    .eq("user_id", user.id);
 
-  const tipoNormalizado = normalizaTipo(filtros?.tipo);
+  const tipoNormalizado = normalizaTipo(tipo);
   if (tipoNormalizado) {
     query = query.eq("tipo", tipoNormalizado);
   }
 
-  if (filtros?.numero) {
-    // a sua coluna é text, então compara como string
-    query = query.ilike("numero_caixa", `${filtros.numero}%`);
-    // se quiser match exato: query = query.eq("numero_caixa", filtros.numero);
+  if (numero) {
+    query = query.ilike("numero_caixa", `${numero}%`);
   }
 
-  // ordenação estável por tipo e número_caixa (texto)
+  // Ordenação (mantive sua ordem anterior)
   query = query.order("tipo", { ascending: true }).order("numero_caixa", { ascending: true });
 
-  const { data, error } = await query;
+  // Paginação
+  if (limit != null) {
+    const off = offset ?? 0;
+    const lim = Math.max(1, limit);
+    query = query.range(off, off + lim - 1);
+  } else if (page && pageSize) {
+    const ps = Math.max(1, pageSize);
+    const pg = Math.max(1, page);
+    const off = (pg - 1) * ps;
+    query = query.range(off, off + ps - 1);
+  }
+
+  const { data, error, count } = await query;
 
   if (error) {
     console.error("getCaixasData error:", {
@@ -73,5 +93,5 @@ export async function getCaixasData(filtros: Filtros): Promise<GetCaixasDataResu
     throw error;
   }
 
-  return { data: (data ?? []) as Caixa[], user };
+  return { data: (data ?? []) as Caixa[], count: count ?? 0, user };
 }

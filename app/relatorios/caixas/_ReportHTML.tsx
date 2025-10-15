@@ -1,4 +1,3 @@
-// app/relatorios/caixas/_ReportHTML.tsx
 type Caixa = {
   id: string;
   numero_caixa: string;
@@ -11,16 +10,35 @@ type Caixa = {
 type Filtros = { tipo?: string | null; numero?: string | null };
 type Meta = { titulo: string; subtitulo?: string; geradoEmISO: string; usuario?: string };
 
+type Pagination = {
+  page: number;         // 1-based
+  pageSize: number;
+  total: number;        // total real (filtro atual)
+  totalPages: number;
+  makeHref: (page: number) => string;
+};
+
+type Stats = {
+  all: number;
+  jud: number;
+  adm: number;
+  doc: number;
+};
+
 export default function ReportHTML({
   dados,
   filtros,
   meta,
   brasaoImgSrc,
+  pagination,
+  stats,          // 👈 NOVO
 }: {
   dados: Caixa[];
   filtros: Filtros;
   meta: Meta;
   brasaoImgSrc?: string;
+  pagination?: Pagination;
+  stats?: Stats;        // 👈 NOVO
 }) {
   // —— Helpers ——
   const humanizeTipo = (t: string) => {
@@ -44,11 +62,11 @@ export default function ReportHTML({
     return s.charAt(0).toUpperCase() + s.slice(1);
   };
 
-  // —— Contagens ——
-  const total = dados.length;
-  const totalJud = dados.filter((c) => c.tipo === "processo_judicial").length;
-  const totalAdmProc = dados.filter((c) => c.tipo === "processo_administrativo").length;
-  const totalDocAdm = dados.filter((c) => c.tipo === "documento_administrativo").length;
+  // —— Contagens do LOTE VISÍVEL (fallback) ——:
+  const totalVisivel = dados.length;
+  const totalJudVis = dados.filter((c) => c.tipo === "processo_judicial").length;
+  const totalAdmVis = dados.filter((c) => c.tipo === "processo_administrativo").length;
+  const totalDocVis = dados.filter((c) => c.tipo === "documento_administrativo").length;
 
   // —— Filtro / Título dinâmico ——
   const currentTipoRaw = (filtros?.tipo ?? "todos").toString();
@@ -57,14 +75,9 @@ export default function ReportHTML({
 
   const tituloDinamico = showAll ? "Lista de Caixas" : `Caixas - ${humanizeTipo(currentTipo)}`;
 
-  const countForCurrent =
-    currentTipo === "processo_judicial"
-      ? totalJud
-      : currentTipo === "processo_administrativo"
-      ? totalAdmProc
-      : currentTipo === "documento_administrativo"
-      ? totalDocAdm
-      : total;
+  // Faixa mostrada (para legenda “Mostrando X–Y de Z”)
+  const from = pagination ? (pagination.page - 1) * pagination.pageSize + (totalVisivel ? 1 : 0) : (totalVisivel ? 1 : 0);
+  const to = pagination ? Math.min(pagination.page * pagination.pageSize, pagination.total) : totalVisivel;
 
   return (
     <div className="mx-auto max-w-[760px] text-gray-900">
@@ -103,7 +116,7 @@ export default function ReportHTML({
         </h2>
       </header>
 
-      {/* Cards — sempre 2×2 no PDF e também no desktop */}
+      {/* Cards */}
       {showAll ? (
         <section
           className="
@@ -114,56 +127,120 @@ export default function ReportHTML({
         >
           <div className="rounded border border-gray-200 p-3">
             <p className="text-gray-500">Total de Caixas</p>
-            <p className="mt-1 text-lg font-semibold">{total}</p>
+            <p className="mt-1 text-lg font-semibold">
+              {(stats?.all ?? totalVisivel).toLocaleString("pt-BR")}
+            </p>
+            {pagination && (
+              <p className="mt-1 text-[11px] text-gray-500">
+                Mostrando {from.toLocaleString("pt-BR")}–{to.toLocaleString("pt-BR")} de{" "}
+                <b>{(pagination.total ?? totalVisivel).toLocaleString("pt-BR")}</b>
+              </p>
+            )}
           </div>
 
           <div className="rounded border border-gray-200 p-3">
             <p className="text-gray-500">Proc. Judiciais</p>
-            <p className="mt-1 text-lg font-semibold">{totalJud}</p>
+            <p className="mt-1 text-lg font-semibold">
+              {(stats?.jud ?? totalJudVis).toLocaleString("pt-BR")}
+            </p>
           </div>
 
           <div className="rounded border border-gray-200 p-3">
             <p className="text-gray-500">Proc. Administrativos</p>
-            <p className="mt-1 text-lg font-semibold">{totalAdmProc}</p>
+            <p className="mt-1 text-lg font-semibold">
+              {(stats?.adm ?? totalAdmVis).toLocaleString("pt-BR")}
+            </p>
           </div>
 
           <div className="rounded border border-gray-200 p-3">
             <p className="text-gray-500">Docs. Administrativos</p>
-            <p className="mt-1 text-lg font-semibold">{totalDocAdm}</p>
+            <p className="mt-1 text-lg font-semibold">
+              {(stats?.doc ?? totalDocVis).toLocaleString("pt-BR")}
+            </p>
           </div>
         </section>
       ) : (
         <section className="mb-4 grid grid-cols-1 gap-3 text-center text-xs print:grid-cols-1 no-break">
           <div className="rounded border border-gray-200 p-3">
             <p className="text-gray-500">{humanizeTipo(currentTipo)}</p>
-            <p className="mt-1 text-lg font-semibold">{countForCurrent}</p>
+            <p className="mt-1 text-lg font-semibold">{totalVisivel}</p>
           </div>
         </section>
       )}
 
-      {/* Tabela */}
+      {/* Tabela (sem zebra) */}
       <section >
         <table className="w-full border-collapse text-sm">
           <thead className="bg-gray-50">
             <tr className="text-left">
-              <th className="px-4 py-3 font-medium text-gray-700"># Caixa</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Tipo</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Cidade</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Destinação</th>
+              <th className="px-4 py-2 font-medium text-gray-700"># Caixa</th>
+              <th className="px-4 py-2 font-medium text-gray-700">Tipo</th>
+              <th className="px-4 py-2 font-medium text-gray-700">Cidade</th>
+              <th className="px-4 py-2 font-medium text-gray-700">Destinação</th>
             </tr>
           </thead>
           <tbody>
             {dados.map((c) => (
-              <tr key={c.id} className="odd:bg-white even:bg-gray-50">
-                <td className="whitespace-nowrap px-4 py-3">{c.numero_caixa}</td>
-                <td className="px-4 py-3">{humanizeTipo(c.tipo)}</td>
-                <td className="px-4 py-3">{c.localizacao || "—"}</td>
-                <td className="px-4 py-3">{capitalizeFirst(c.destinacao)}</td>
+              <tr key={c.id}>
+                <td className="whitespace-nowrap px-4 py-2">{c.numero_caixa}</td>
+                <td className="px-4 py-2">{humanizeTipo(c.tipo)}</td>
+                <td className="px-4 py-2">{c.localizacao || "—"}</td>
+                <td className="px-4 py-2">{capitalizeFirst(c.destinacao)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </section>
+
+      {/* Paginação (links) */}
+      {pagination && pagination.totalPages > 1 ? (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs text-gray-600">
+            Página {pagination.page} de {pagination.totalPages}
+          </div>
+          <div className="flex items-center gap-1">
+            {(() => {
+              const p = pagination;
+              const first = 1;
+              const last = p.totalPages;
+              const prev = Math.max(first, p.page - 1);
+              const next = Math.min(last, p.page + 1);
+              return (
+                <>
+                  <a
+                    href={p.makeHref(first)}
+                    className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50"
+                    aria-label="Primeira página"
+                  >
+                    «
+                  </a>
+                  <a
+                    href={p.makeHref(prev)}
+                    className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50"
+                    aria-label="Anterior"
+                  >
+                    ‹
+                  </a>
+                  <a
+                    href={p.makeHref(next)}
+                    className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50"
+                    aria-label="Próxima"
+                  >
+                    ›
+                  </a>
+                  <a
+                    href={p.makeHref(last)}
+                    className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50"
+                    aria-label="Última página"
+                  >
+                    »
+                  </a>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      ) : null}
 
       <footer className="mt-6 text-center text-[10px] text-gray-500">
         Documento gerado pelo JudBox · {new Date(meta.geradoEmISO).toLocaleDateString("pt-BR")}
@@ -177,6 +254,7 @@ export default function ReportHTML({
     table, tr, td, th { break-inside: auto; page-break-inside: auto; }
     thead { display: table-header-group; }
     tfoot { display: table-footer-group; }
+    tbody td { padding-top: 6px !important; padding-bottom: 6px !important; line-height: 1.25; }
   }
 `}</style>
 
