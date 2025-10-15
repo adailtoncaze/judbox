@@ -31,19 +31,49 @@ export async function middleware(req: NextRequest) {
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
-  // ✅ Exceções que podem ser iframadas pelo mesmo domínio
-  if (pathname.startsWith("/api/pdf") || pathname.startsWith("/relatorios/caixas/preview")) {
+  // --- Configura 'frame-ancestors' dinamicamente ---
+  // Formato esperado de NEXT_PUBLIC_FRAME_ANCESTORS: "https://painel.seudominio.com https://outro.com"
+  const extraAncestors = (process.env.NEXT_PUBLIC_FRAME_ANCESTORS || "")
+    .split(/\s+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  // Sempre incluir 'self'
+  const frameAncestorsList = ["'self'", ...extraAncestors];
+  const frameAncestorsValue = `frame-ancestors ${frameAncestorsList.join(" ")};`;
+
+  // Rotas que PODEM ser embevidas em iframe (preview/pdf/etiquetas)
+  const isEmbeddableRoute =
+    pathname.startsWith("/api/pdf") ||
+    pathname.startsWith("/relatorios/caixas/preview") ||
+    pathname.startsWith("/etiquetas");
+
+  if (isEmbeddableRoute) {
+    // CSP para rotas que permitem iframe
     res.headers.set(
       "Content-Security-Policy",
-      "frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
+      [
+        frameAncestorsValue,            // ex.: frame-ancestors 'self' https://painel...
+        "object-src 'none';",
+        "base-uri 'self';",
+      ].join(" ")
     );
-    res.headers.set("X-Frame-Options", "SAMEORIGIN");
+
+    // X-Frame-Options só é seguro usar se **apenas** SAMEORIGIN for permitido.
+    // Se houver outras origens em frame-ancestors, não envie XFO para evitar conflito.
+    if (extraAncestors.length === 0) {
+      res.headers.set("X-Frame-Options", "SAMEORIGIN");
+    } else {
+      res.headers.delete("X-Frame-Options");
+    }
   } else {
-    // 🔒 Demais rotas seguem não-iframáveis
+    // Demais rotas: negar embedding
     res.headers.set(
       "Content-Security-Policy",
       "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
     );
+    // Opcional: reforçar defesa (não é estritamente necessário com CSP)
+    // res.headers.set("X-Frame-Options", "DENY");
   }
 
   return res;
@@ -51,8 +81,12 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    // rotas já existentes
     "/relatorios/caixas/preview",
     "/api/pdf",
+    // adiciona o caminho de etiquetas
+    "/etiquetas/:path*",
+    // catch-all (exceto assets estáticos e favicon)
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

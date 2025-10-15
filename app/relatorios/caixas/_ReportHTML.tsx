@@ -111,7 +111,7 @@ export default function ReportHTML({
         </div>
 
         {/* Título da listagem */}
-        <h2 className="rounded bg-gray-50 text-2xl text-gray-600 font-semibold text-center pt-6 pb-4 mt-6">
+        <h2 className="rounded bg-gray-100 text-2xl text-gray-600 font-semibold text-center pt-6 pb-4 mt-6">
           {tituloDinamico}
         </h2>
       </header>
@@ -171,7 +171,7 @@ export default function ReportHTML({
       {/* Tabela (sem zebra) */}
       <section >
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-100">
             <tr className="text-left">
               <th className="px-4 py-2 font-medium text-gray-700"># Caixa</th>
               <th className="px-4 py-2 font-medium text-gray-700">Tipo</th>
