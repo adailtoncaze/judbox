@@ -16,7 +16,6 @@ import {
   EyeIcon,
   DocumentArrowDownIcon,
 } from "@heroicons/react/24/outline"
-import { exportDocsAdm, exportProcJud, exportProcAdm } from "./exportCsv"
 import { useToast } from "@/hooks/useToast"
 import PdfPreviewModal from "@/components/PdfPreviewModal"
 
@@ -33,7 +32,7 @@ export default function Header() {
   // modal
   const [previewOpen, setPreviewOpen] = useState(false)
 
-  // loading CSV (seu existente)
+  // loading CSV
   const [loading, setLoading] = useState<string | null>(null)
 
   // loading PDF (novo): 'preview' | 'download' | null
@@ -62,29 +61,49 @@ export default function Header() {
     router.replace("/login")
   }
 
+  // Baixa o CSV garantindo extensão e nome corretos
+  async function downloadCsv(kind: "documentos_adm" | "processos_jud" | "processos_adm") {
+    const res = await fetch(`/api/export/csv?tipo=${kind}`, { method: "GET" })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "")
+      throw new Error(msg || "Falha ao gerar CSV.")
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${kind}.csv` // força a extensão e o nome
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  // Mapeia os três botões para a nova rota
   const handleExport = async (type: "docs" | "jud" | "adm") => {
     try {
       setLoading(type)
-      if (type === "docs") await exportDocsAdm(showToast)
-      if (type === "jud") await exportProcJud(showToast)
-      if (type === "adm") await exportProcAdm(showToast)
+      if (type === "docs") await downloadCsv("documentos_adm")
+      if (type === "jud") await downloadCsv("processos_jud")
+      if (type === "adm") await downloadCsv("processos_adm")
+      showToast("CSV gerado com sucesso.", "success")
+    } catch (e: any) {
+      showToast(e?.message || "Falha ao iniciar download do CSV.", "error")
     } finally {
       setLoading(null)
       setOpenCsv(false)
     }
   }
 
-  // filtros atuais
+  // filtros atuais (se quiser passar depois à rota)
   const tipoAtual = (searchParams.get("tipo") ?? "todos").toString()
   const numeroAtual = (searchParams.get("numero") ?? "").toString()
 
   // PDF: abrir modal com spinner enquanto inicia
   const abrirPreviewModal = () => {
     setLoadingPdf("preview")
-    // abrir modal imediatamente (o spinner principal ficará dentro do modal)
     setPreviewOpen(true)
     setOpenPdf(false)
-    // remover o spinner do item do dropdown rapidamente (efeito visual)
     setTimeout(() => setLoadingPdf(null), 300)
   }
 
@@ -237,7 +256,6 @@ export default function Header() {
                         <span className="animate-spin border-2 border-indigo-600 border-t-transparent rounded-full w-4 h-4"></span>
                       )}
                     </button>
-
                   </div>
                 </div>
               </div>
