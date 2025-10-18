@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist-tests",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2019",
+    "types": ["node"],
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "resolveJsonModule": true
+  },
+  "include": [
+    "components/exportCsv.ts",
+    "tests/**/*.ts"
+  ]
+}
